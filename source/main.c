@@ -117,6 +117,7 @@ static void prvSetupHardware(void)
 
 	AD5666Init();
 	AD7606Init();
+	MAX31855Init();
 
 	/* Initial LED0 state is off */
 	Board_LED_Set(0, false);
@@ -213,7 +214,7 @@ int main(void)
 
 	/* UART output thread, simply counts seconds */
 	xTaskCreate(vRunCommandTask, (signed char *) "vTaskRunCommand",
-				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 2UL),
+				256, NULL, (tskIDLE_PRIORITY + 2UL),
 				(xTaskHandle *) NULL);
 
 	/* Start the scheduler */

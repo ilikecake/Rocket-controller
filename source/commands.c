@@ -29,7 +29,7 @@
 //#include "board.h"
 
 //The number of commands
-const uint8_t NumCommands = 5;
+const uint8_t NumCommands = 6;
 
 //Handler function declerations
 
@@ -66,13 +66,14 @@ const char _F5_NAME[] 			= "stat";
 const char _F5_DESCRIPTION[] 	= "Get status of the device";
 const char _F5_HELPTEXT[]		= "'stat' has no parameters";
 
-/*
 //Write a register to the ADC
 static int _F6_Handler (void);
-const char _F6_NAME[] PROGMEM 			= "adwrite";
-const char _F6_DESCRIPTION[] PROGMEM 	= "write to a register on the ADC";
-const char _F6_HELPTEXT[] PROGMEM 		= "adwrite <register> <data>";
+const char _F6_NAME[]  			= "gettc";
+const char _F6_DESCRIPTION[]  	= "read temperatures";
+const char _F6_HELPTEXT[]  		= "'gettc' has no parameters";//"gettc <register> <data>";
 
+
+/*
 //Set up the calibration for the internal temperature sensor
 static int _F7_Handler (void);
 const char _F7_NAME[] PROGMEM 			= "tempcal";
@@ -124,8 +125,8 @@ const CommandListItem AppCommandList[] =
 	{ _F3_NAME, 	0,  0,	_F3_Handler,	_F3_DESCRIPTION,	_F3_HELPTEXT	},		//gettime
 	{ _F4_NAME, 	0,  3,	_F4_Handler,	_F4_DESCRIPTION,	_F4_HELPTEXT	},		//ad
 	{ _F5_NAME, 	0,  0,	_F5_Handler,	_F5_DESCRIPTION,	_F5_HELPTEXT	},		//STAT
+	{ _F6_NAME, 	0,  0,	_F6_Handler,	_F6_DESCRIPTION,	_F6_HELPTEXT	},		//read temperaturesTemperature
 	/*
-	{ _F6_NAME, 	2,  2,	_F6_Handler,	_F6_DESCRIPTION,	_F6_HELPTEXT	},		//adwrite	
 	{ _F7_NAME, 	0,  0,	_F7_Handler,	_F7_DESCRIPTION,	_F7_HELPTEXT	},		//tempcal
 	{ _F8_NAME,		1,  1,	_F8_Handler,	_F8_DESCRIPTION,	_F8_HELPTEXT	},		//beep
 	{ _F9_NAME,		1,  1,	_F9_Handler,	_F9_DESCRIPTION,	_F9_HELPTEXT	},		//relay
@@ -290,8 +291,29 @@ static int _F5_Handler (void)
 	printf("Input Clock Rate: %u MHz\r\n", Chip_Clock_GetMainOscRate()/1000000);
 	printf("System Clock Rate: %u MHz\r\n", Chip_Clock_GetSystemClockRate()/1000000);
 	printf("Peripheral Clock Rate: %u MHz\r\n", Chip_Clock_GetPeripheralClockRate(SYSCTL_PCLK_TIMER2)/1000000);
+	printf("CompileDate: %s%s\r\n",__DATE__,__TIME__);
 
 	return 0;
 }
+
+
+static int _F6_Handler (void)
+{
+
+	 uint8_t sel;
+	 uint16_t coldJunction;
+	 uint32_t temperature;
+
+	for(sel=1;sel<5;sel++)
+	{
+		temperature=MAX31855read(sel, &coldJunction);
+		printf("TC%u: %u\r\n",sel,temperature);
+	}
+
+	return 0;
+}
+
+
+
 
 /** @} */

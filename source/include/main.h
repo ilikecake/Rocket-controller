@@ -19,5 +19,6 @@
 #include "i2c.h"
 #include "TCA9554A.h"
 #include "AD7606.h"
+#include "MAX31855.h"
 
 #endif /* MAIN_H_ */

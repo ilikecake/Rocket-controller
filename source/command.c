@@ -587,9 +587,8 @@ static int STAT_C (void)
 	//printf("SPCR: 0x%02X\r\n",SPCR);
 	//printf("SPSR: 0x%02X\r\n",SPSR);
 	
-	#if COMMAND_STAT_SHOW_COMPILE_STRING == 1
-	printf_P(fwCompileDate);
-	#endif
+	//printf("CompileDate: %s%s\r\n",__DATE__,__TIME__);
+
 	return 0;
 }
 /** @} */
