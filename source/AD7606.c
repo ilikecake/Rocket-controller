@@ -13,7 +13,7 @@ uint8_t ADC_SampleCount;
 int16_t ADC_DataArray[8];
 uint8_t ADC_Status;
 
-uint8_t ADC_DataArray2[16];		//TODO: remove this later
+//uint8_t ADC_DataArray2[16];		//TODO: remove this later
 
 
 
@@ -251,15 +251,13 @@ uint8_t AD7606GetStatus(void)
 	return ADC_Status;
 }
 
-void AD7606GetDataSet(void) //uint16_t *DataSet[])
+void AD7606GetDataSet(uint8_t sel, uint16_t *DataSet)
 {
 	uint8_t i;
-
 
 	//printf("start: %u\r\n", Chip_GPIO_ReadDirBit(LPC_GPIO, AD7606_ADSTART_PORT, AD7606_ADSTART_PIN));
 	//printf("busy: %u\r\n", Chip_GPIO_ReadDirBit(LPC_GPIO, AD7606_ADBUSY_PORT, AD7606_ADBUSY_PIN));
 	//printf("fdata: %u\r\n", Chip_GPIO_ReadDirBit(LPC_GPIO, AD7606_ADFDATA_PORT, AD7606_ADFDATA_PIN));
-
 
 	//Start conversion
 	AD7606_Start(true);
@@ -279,8 +277,12 @@ void AD7606GetDataSet(void) //uint16_t *DataSet[])
 		}
 	}
 
+	for(i=0; i<8; i++)
+	{
+		DataSet[i]=ADC_DataArray[i];
+	}
 
-
+/*
 	for(i=0; i<8; i++)
 	{
 		//printf("ADC[%u]: 0x%02X, 0x%02X,", i, ADC_DataArray2[i*2], ADC_DataArray2[i*2+1]);
@@ -289,7 +291,7 @@ void AD7606GetDataSet(void) //uint16_t *DataSet[])
 		//printf(" %d counts\r\n", ADC_DataArray[i]);
 		printf("ADC[%u]: %d counts\r\n", i, ADC_DataArray[i]);
 	}
-
+*/
 	ADC_Status = AD7606_STATUS_READY;
 	return;
 }

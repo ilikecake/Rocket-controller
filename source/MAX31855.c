@@ -65,16 +65,16 @@ void MAX31855Select( uint8_t sel )
 
 	switch (sel)
 		{
-	case 1:
+	case 0:
 		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS1_PIN, false);	//chip is selected
 		break;
-	case 2:
+	case 1:
 		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS2_PIN, false);	//chip is selected
 		break;
-	case 3:
+	case 2:
 		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS3_PIN, false);	//chip is selected
 		break;
-	case 4:
+	case 3:
 		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS4_PIN, false);	//chip is selected
 		break;
 		
@@ -114,7 +114,7 @@ uint32_t MAX31855read( uint8_t sel, uint16_t *coldJunction )
 
 	Chip_SSP_RWFrames_Blocking(LPC_SSP1, &xf_setup);
 
-	MAX31855Select (0);
+	MAX31855Select (0xFF);//deselect all TC chips
 	
 
 	temperature = ((uint32_t)ReceiveBuffer[0] << 6) | ((uint32_t)ReceiveBuffer[1] >> 2);//.25deg C per bit starting at 0C

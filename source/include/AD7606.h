@@ -84,7 +84,7 @@ void AD7606WaitReady(void);
 void AD7606StartDataClock(uint32_t ClockRateToSet);
 
 uint8_t AD7606GetStatus(void);
-void AD7606GetDataSet(void);//uint16_t *DataSet[]);
+void AD7606GetDataSet(uint8_t sel, uint16_t *DataSet);
 
 
 

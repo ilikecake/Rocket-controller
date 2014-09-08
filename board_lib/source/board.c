@@ -92,9 +92,79 @@ static void Board_LED_Init(void)
 	Chip_GPIO_WritePortBit(LPC_GPIO, LED3_GPIO_PORT_NUM, LED3_GPIO_BIT_NUM, true);
 }
 
+/* Sets the state of a board LED to on or off
+ * Note: a high level on the pin turns off the LED
+ * Note: LED numbers start at 1						*/
+void Board_DO_Set(uint8_t channel, bool state)
+{
+	/*
+	On = !On;
+	if (LEDNumber == 1)
+	{
+		Chip_GPIO_WritePortBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, On);
+	}
+	else if(LEDNumber == 2)
+	{
+		Chip_GPIO_WritePortBit(LPC_GPIO, LED1_GPIO_PORT_NUM, LED1_GPIO_BIT_NUM, On);
+	}
+	else if(LEDNumber == 3)
+	{
+		Chip_GPIO_WritePortBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, On);
+	}
+	*/
+}
+
 /*****************************************************************************
  * Public functions
  ****************************************************************************/
+
+//send a 32 bit number over UART
+void sendSerialUInt32(uint32_t msg, char channel){
+	sendSerialChar(msg>>24, channel);//send MSB
+	sendSerialChar((msg && 0xFF0000)>>16, channel);
+	sendSerialChar((msg && 0xFF00)>>8, channel);
+	sendSerialChar(msg && 0xFF, channel);//send LSB
+}
+
+//send a16 bit number over UART
+void sendSerialUInt16(uint16_t msg, char channel){
+	sendSerialChar(msg>>8, channel);//send MSB
+	sendSerialChar(msg && 0xFF, channel);//send LSB
+}
+
+//send character over UART
+void sendSerialChar(char msg, char channel) {
+	//send a single character over serial
+	//do not send a new line using this function
+	if (channel == 0){
+		while(!(LPC_UART0->LSR & 0x20));	// Block until tx empty
+		LPC_UART0->THR = msg;
+		}
+	if (channel == 1){
+		while(!(LPC_UART1->LSR & 0x20));	// Block until tx empty
+		LPC_UART1->THR = msg;
+		}
+	if (channel == 2){
+		while(!(LPC_UART2->LSR & 0x20));	// Block until tx empty
+		LPC_UART2->THR = msg;
+		}
+	if (channel == 3){
+		while(!(LPC_UART3->LSR & 0x20));	// Block until tx empty
+		LPC_UART3->THR = msg;
+		}
+}
+
+//send NewLine over UART
+void sendSerialNewline(char num, char  channel){
+
+    signed char i;
+
+    for (i = 0; i < num; i++){
+	    sendSerialChar(0x0A, channel);
+        sendSerialChar(0x0D, channel);
+    }
+
+}
 
 /* Update system core clock rate, should be called if the system has
    a clock rate change */
@@ -307,7 +377,7 @@ void Board_I2C_Init(I2C_ID_T id)
 		break;
 	}
 }
-
+/*
 void Board_Buttons_Init(void)
 {
 	Chip_GPIO_WriteDirBit(LPC_GPIO, BUTTONS_BUTTON1_GPIO_PORT_NUM, BUTTONS_BUTTON1_GPIO_BIT_NUM, false);
@@ -337,11 +407,11 @@ void Board_Joystick_Init(void)
 					  JOYSTICK_PRESS_GPIO_BIT_NUM,
 					  IOCON_MODE_INACT,
 					  IOCON_FUNC0);
-	Chip_GPIO_WriteDirBit(LPC_GPIO, JOYSTICK_UP_GPIO_PORT_NUM, JOYSTICK_UP_GPIO_BIT_NUM, false);		/* input */
-	Chip_GPIO_WriteDirBit(LPC_GPIO, JOYSTICK_DOWN_GPIO_PORT_NUM, JOYSTICK_DOWN_GPIO_BIT_NUM, false);	/* input */
-	Chip_GPIO_WriteDirBit(LPC_GPIO, JOYSTICK_LEFT_GPIO_PORT_NUM, JOYSTICK_LEFT_GPIO_BIT_NUM, false);	/* input */
-	Chip_GPIO_WriteDirBit(LPC_GPIO, JOYSTICK_RIGHT_GPIO_PORT_NUM, JOYSTICK_RIGHT_GPIO_BIT_NUM, false);	/* input */
-	Chip_GPIO_WriteDirBit(LPC_GPIO, JOYSTICK_PRESS_GPIO_PORT_NUM, JOYSTICK_PRESS_GPIO_BIT_NUM, false);	/* input */
+	Chip_GPIO_WriteDirBit(LPC_GPIO, JOYSTICK_UP_GPIO_PORT_NUM, JOYSTICK_UP_GPIO_BIT_NUM, false);		// input
+	Chip_GPIO_WriteDirBit(LPC_GPIO, JOYSTICK_DOWN_GPIO_PORT_NUM, JOYSTICK_DOWN_GPIO_BIT_NUM, false);	// input
+	Chip_GPIO_WriteDirBit(LPC_GPIO, JOYSTICK_LEFT_GPIO_PORT_NUM, JOYSTICK_LEFT_GPIO_BIT_NUM, false);	// input
+	Chip_GPIO_WriteDirBit(LPC_GPIO, JOYSTICK_RIGHT_GPIO_PORT_NUM, JOYSTICK_RIGHT_GPIO_BIT_NUM, false);	// input
+	Chip_GPIO_WriteDirBit(LPC_GPIO, JOYSTICK_PRESS_GPIO_PORT_NUM, JOYSTICK_PRESS_GPIO_BIT_NUM, false);	// input
 }
 
 uint8_t Joystick_GetStatus(void)
@@ -367,6 +437,10 @@ uint8_t Joystick_GetStatus(void)
 
 void Serial_CreateStream(void *Stream)
 {}
+*/
+
+
+
 /**
  * @}
  */

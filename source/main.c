@@ -42,6 +42,8 @@
 //#include "board.h"
 //#include "FreeRTOS.h"
 //#include "task.h"
+//#include "timers.h"
+
 
 //#include "command.h"
 
@@ -100,7 +102,6 @@ static void prvSetupHardware(void)
 {
 	Board_Init();
 
-
 	Chip_GPIO_WriteDirBit(LPC_GPIO, 0, 17, true);
 	Chip_GPIO_WritePortBit(LPC_GPIO, 0, 17, false);
 
@@ -114,53 +115,148 @@ static void prvSetupHardware(void)
 	/* Set default mode to interrupt */
 	i2c_set_mode(I2C0, 0);
 
-
-	AD5666Init();
-	AD7606Init();
-	MAX31855Init();
+	AD5666Init();//set up Analog Output chip
+	AD7606Init();//set up Analog Input chip
+	MAX31855Init();//set up thermocouple chip
 
 	/* Initial LED0 state is off */
 	Board_LED_Set(0, false);
 }
 
-/* LED1 toggle thread */
-static portTASK_FUNCTION(vLEDTask1, pvParameters) {
-	bool LedState = false;
+/* Emergency Stop thread */
+void vEStopTask(void * pvParameters ) {
+//static portTASK_FUNCTION(vEStopTask, pvParameters) {
+	//portTickType tickTime;
+	//portTickType interval;
+	//interval=configTICK_RATE_HZ/100;//Set frequency to 100 loops per second
+
+
+	activeEstop = 1;
+
+	vTaskSuspend( NULL );//suspend current task until triggered by emergency stop event
+
+	//kill control task
+	vTaskDelete(vFireControlTaskHandle);
+
+	//Set all outputs to emergency state
+	uint8_t i;
+	for (i=0;i<TOTAL_DO_CHANNELS;i++)
+	{
+		Board_DO_Set(i, 0);//set all outputs to 0
+	}
+	//set servos to closed
+
+
+	//wait for a few seconds.  Continue recording data for 5 seconds during shutdown.
+	vTaskDelay(configTICK_RATE_HZ * 5);
+
+
+	activeSaveData = 0;//stop recording data
+	activeEstop = 0;
+
+	//kill E-Stop task
+	vTaskDelete(vEStopTaskHandle);
+
+}
+
+
+/* Run test sequence */
+void vFireControlTask(void * pvParameters ) {
+//static portTASK_FUNCTION(vFireControlTask, pvParameters) {
+	portTickType tickTime;
+	portTickType interval;
+	interval=configTICK_RATE_HZ/100;//Set frequency to 100 loops per second
+
+
+	//Ensure that a valid control sequence has been uploaded
+
+
+
+	runningControl = 1;//show that control sequence is running
+	activeEstop = 0;//the emergency stop has not been triggered
+	activeSaveData = 1;//set save data flag to 1 (make sure data will be saved)
+
+	vTaskResume(vDataAquisitionTaskHandle);//make sure data is being acquired
 
 	while (1) {
-		Board_LED_Set(1, LedState);
-		LedState = (bool) !LedState;
+		tickTime = xTaskGetTickCount();
 
-		/* About a 3Hz on/off toggle rate */
-		vTaskDelay(configTICK_RATE_HZ / 6);
+		UpdateCommand(tickTime);
+
+		vTaskDelayUntil(&tickTime,interval);
+	}
+
+	activeSaveData = 0;//stop saving data
+
+	//kill E-Stop task
+	vTaskDelete(vEStopTaskHandle);
+
+	//kill control task
+	vTaskDelete(vFireControlTaskHandle);
+
+}
+
+/* This task reads data from analog inputs and TCs */
+void vDataAquisitionTask(void * pvParameters ) {
+//static portTASK_FUNCTION(vDataAquisitionTask, pvParameters) {
+	portTickType tickTime;
+	portTickType interval;
+	interval=configTICK_RATE_HZ/100;//Set frequency to 100 loops per second
+
+	vTaskSuspend( NULL );//suspend current task
+
+	while (1)
+	{
+		tickTime = xTaskGetTickCount();
+
+		ReadData();
+
+		if (activeSaveData == 1)
+		{
+			//save data to flash or SD card
+		}
+
+		vTaskDelayUntil(&tickTime,interval);
 	}
 }
 
-/* LED2 toggle thread */
-//static portTASK_FUNCTION(vLEDTask2, pvParameters) {
-//	bool LedState = false;
-//
-//	while (1) {
-//		Board_LED_Set(1, LedState);
-//		LedState = (bool) !LedState;
-//
-//		/* About a 7Hz on/off toggle rate */
-//		vTaskDelay(configTICK_RATE_HZ / 14);
-//	}
-//}
 
-/* This task looks for waiting commands and runs them */
+/* This task sends data to remote computer */
+void vDataSendTask(void * pvParameters ) {
+//static portTASK_FUNCTION(vDataSendTask, pvParameters) {
+	portTickType tickTime;
+	portTickType interval;
+	interval=configTICK_RATE_HZ/100;//Set frequency to 100 loops per second
+
+	vTaskSuspend( NULL );//suspend current task
+
+	while (1)
+	{
+		tickTime = xTaskGetTickCount();
+
+		//get data semaphore
+
+
+		//send data to remote computer via wireless RS232
+
+		vTaskDelayUntil(&tickTime,interval);
+	}
+}
+
+
+
+
+/* This task looks for waiting commands from UART and runs them */
 static portTASK_FUNCTION(vRunCommandTask, pvParameters) {
 
 	while (1)
 	{
+
 		RunCommand();
 		vTaskDelay(configTICK_RATE_HZ/5);
 
 	}
 }
-
-
 
 /* UART (or output) thread */
 static portTASK_FUNCTION(vUARTTask, pvParameters) {
@@ -197,28 +293,45 @@ int main(void)
 {
 	prvSetupHardware();
 
-	/* LED1 toggle thread */
-	xTaskCreate(vLEDTask1, (signed char *) "vTaskLed1",
-				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 3UL),
+	activeSaveData = 0;
+
+/*
+	// Emergency Stop
+	xTaskCreate(vEStopTask, (signed char *) "vEStopTask",
+				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 1UL),
 				(xTaskHandle *) NULL);
 
-	/* LED2 toggle thread */
-	//xTaskCreate(vLEDTask2, (signed char *) "vTaskLed2",
-				//configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 3UL),
-				//(xTaskHandle *) NULL);
+	// Control Digital Outputs and Servos during run time
+	xTaskCreate(vFireControlTask, (signed char *) "vFireControlTask",
+				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 2UL),
+				(xTaskHandle *) NULL);
+	*/
+
+	// Read analog data (save it to SD card):  is immediately suspended
+	xTaskCreate(vDataAquisitionTask, (signed char *) "vDataAquisitionTask",
+				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 3UL),
+				&vDataAquisitionTaskHandle);
+
+	// Send analog data back to computer via wireless RS232:  is immediately suspended
+	xTaskCreate(vDataSendTask, (signed char *) "vDataSendTask",
+				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 4UL),
+				&vDataSendTaskHandle);
+
 
 	/* UART output thread, simply counts seconds */
 	xTaskCreate(vUARTTask, (signed char *) "vTaskUart",
-				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 1UL),
+				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 5UL),
 				(xTaskHandle *) NULL);
 
 	/* UART output thread, simply counts seconds */
 	xTaskCreate(vRunCommandTask, (signed char *) "vTaskRunCommand",
-				256, NULL, (tskIDLE_PRIORITY + 2UL),
+				256, NULL, (tskIDLE_PRIORITY + 6UL),
 				(xTaskHandle *) NULL);
 
 	/* Start the scheduler */
 	vTaskStartScheduler();
+
+
 
 	/*vPortEnterCritical();
 

@@ -13,6 +13,7 @@
 #include "board.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 
 #include "command.h"
 #include "AD5666.h"
@@ -20,5 +21,22 @@
 #include "TCA9554A.h"
 #include "AD7606.h"
 #include "MAX31855.h"
+
+#include "ControlLoop.h"
+#include "at45db321d.h" //flash memory driver
+
+
+void vEStopTask(void * pvParameters );
+void vFireControlTask(void * pvParameters );
+void vDataAquisitionTask(void * pvParameters );
+void vDataSendTask(void * pvParameters );
+//void vRunCommandTask(void * pvParameters );
+//void vUARTTask(void * pvParameters );
+
+xTaskHandle vEStopTaskHandle;
+xTaskHandle vFireControlTaskHandle;
+xTaskHandle vDataAquisitionTaskHandle;
+xTaskHandle vDataSendTaskHandle;
+
 
 #endif /* MAIN_H_ */

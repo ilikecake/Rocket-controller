@@ -59,6 +59,13 @@ extern "C" {
 
 #define BOARD_NXP_XPRESSO_1769	/*!< Build for Xpresso LPC1769 board */
 
+#define TOTAL_DO_CHANNELS		16
+#define TOTAL_SERVO_CHANNELS	2
+#define AI_CHIPS						2
+#define AI_CHANNELS_PER_CHIP			8
+#define TC_CHIPS						8
+#define TC_CHANNELS_PER_CHIP			1
+
 /**
  * LED defines
  */
@@ -88,6 +95,13 @@ extern "C" {
  */
 #define MCB_17XX_AUDIO_MIC_SELECT       0x00
 #define MCB_17XX_AUDIO_LINE_IN_SELECT   0x00
+
+void sendSerialChar(char msg, char channel);
+void sendSerialNewline(char num, char  channel);
+void sendSerialUInt32(uint32_t msg, char channel);
+void sendSerialUInt16(uint16_t msg, char channel);
+
+void Board_DO_Set(uint8_t channel, bool state);
 
 /**
  * @brief	Initialize pin muxing for a UART
@@ -172,32 +186,32 @@ STATIC INLINE void Board_I2C_DisableFastPlus(I2C_ID_T id)
  * @brief	Initialize buttons on the board
  * @return	Nothing
  */
-void Board_Buttons_Init(void);
+//void Board_Buttons_Init(void);
 
 /**
  * @brief	Get button status
  * @return	status of button
  */
-uint32_t Buttons_GetStatus(void);
+//uint32_t Buttons_GetStatus(void);
 
 /**
  * @brief	Initialize Joystick
  * @return	Nothing
  */
-void Board_Joystick_Init(void);
+//void Board_Joystick_Init(void);
 
 /**
  * @brief	Get Joystick status
  * @return	status of Joystick
  */
-uint8_t Joystick_GetStatus(void);
+//uint8_t Joystick_GetStatus(void);
 
 /**
  * @brief	Create Serial Stream
  * @param	Stream	: Pointer to stream
  * @return	Nothing
  */
-void Serial_CreateStream(void *Stream);
+//void Serial_CreateStream(void *Stream);
 
 /**
  * @}
