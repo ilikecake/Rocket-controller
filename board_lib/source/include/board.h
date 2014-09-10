@@ -61,9 +61,9 @@ extern "C" {
 
 #define TOTAL_DO_CHANNELS		16
 #define TOTAL_SERVO_CHANNELS	2
-#define AI_CHIPS						2
+#define AI_CHIPS						1//2
 #define AI_CHANNELS_PER_CHIP			8
-#define TC_CHIPS						8
+#define TC_CHIPS						4//8
 #define TC_CHANNELS_PER_CHIP			1
 
 /**

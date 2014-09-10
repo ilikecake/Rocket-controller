@@ -29,7 +29,7 @@
 //#include "board.h"
 
 //The number of commands
-const uint8_t NumCommands = 6;
+const uint8_t NumCommands = 12;
 
 //Handler function declarations
 
@@ -63,43 +63,49 @@ const char _F5_NAME[]  			= "setseq";
 const char _F5_DESCRIPTION[]  	= "set command sequence";
 const char _F5_HELPTEXT[]  		= "'setseq' <1> <2> <3>";//<DO channel> <time> <state>
 
-//Read Time
+//Set Redlines
 static int _F6_Handler (void);
-const char _F6_NAME[] 			= "gettime";
-const char _F6_DESCRIPTION[] 	= "Get realtime clock time";
-const char _F6_HELPTEXT[]		= "'gettime' has no parameters";
+const char _F6_NAME[]  			= "setred";
+const char _F6_DESCRIPTION[]  	= "set redline triggers";
+const char _F6_HELPTEXT[]  		= "'setred' <1> <2> <3>";//<DO channel> <time> <state>
+
+//Read Time
+static int _F7_Handler (void);
+const char _F7_NAME[] 			= "gettime";
+const char _F7_DESCRIPTION[] 	= "Get realtime clock time";
+const char _F7_HELPTEXT[]		= "'gettime' has no parameters";
 
 //start test sequence
-static int _F7_Handler (void);
-const char _F7_NAME[] 			= "fire";
-const char _F7_DESCRIPTION[] 	= "start test sequence";
-const char _F7_HELPTEXT[]		= "'fire' has no parameters";
+static int _F8_Handler (void);
+const char _F8_NAME[] 			= "fire";
+const char _F8_DESCRIPTION[] 	= "start test sequence";
+const char _F8_HELPTEXT[]		= "'fire' has no parameters";
 
 
 
 //Send commands to DAC chip
-static int _F8_Handler (void);
-const char _F8_NAME[] 			= "setupdac";
-const char _F8_DESCRIPTION[] 	= "Send DAC commands";
-const char _F8_HELPTEXT[] 		= "dac <1> <2>";
+static int _F9_Handler (void);
+const char _F9_NAME[] 			= "setupdac";
+const char _F9_DESCRIPTION[] 	= "Send DAC commands";
+const char _F9_HELPTEXT[] 		= "dac <1> <2>";
 
 //Send commands to ADC chip
-static int _F9_Handler (void);
-const char _F9_NAME[]  			= "setupadc";
-const char _F9_DESCRIPTION[]  	= "Send ADC commands";
-const char _F9_HELPTEXT[]  		= "setupadc <1> <2>";
+static int _F10_Handler (void);
+const char _F10_NAME[]  			= "setupadc";
+const char _F10_DESCRIPTION[]  	= "Send ADC commands";
+const char _F10_HELPTEXT[]  		= "setupadc <1> <2>";
 
 //Send commands to TC chip
-static int _F10_Handler (void);
-const char _F10_NAME[]  			= "setuptc";
-const char _F10_DESCRIPTION[]  	= "Send TC commands";
-const char _F10_HELPTEXT[]  		= "setuptc <1> <2>";
+static int _F11_Handler (void);
+const char _F11_NAME[]  			= "setuptc";
+const char _F11_DESCRIPTION[]  	= "Send TC commands";
+const char _F11_HELPTEXT[]  		= "setuptc <1> <2>";
 
 //look for i2C devices
-static int _F11_Handler (void);
-const char _F11_NAME[]  			= "i2cscan";
-const char _F11_DESCRIPTION[]  	= "Scan the I2C Bus";
-const char _F11_HELPTEXT[]  		= "'i2cscan' has no parameters";
+static int _F12_Handler (void);
+const char _F12_NAME[]  			= "i2cscan";
+const char _F12_DESCRIPTION[]  	= "Scan the I2C Bus";
+const char _F12_HELPTEXT[]  		= "'i2cscan' has no parameters";
 
 
 
@@ -159,16 +165,17 @@ const CommandListItem AppCommandList[] =
 {
 	{ _F1_NAME,		1,  2,	_F1_Handler,	_F1_DESCRIPTION,	_F1_HELPTEXT	},		//Set Digital Output Channel
 	{ _F2_NAME,		1,  2,	_F2_Handler,	_F2_DESCRIPTION,	_F2_HELPTEXT	},		//Set servo position
-	{ _F3_NAME, 	1,  2,	_F3_Handler,	_F3_DESCRIPTION,	_F3_HELPTEXT	},		//read Analog data
-	{ _F4_NAME, 	0,  0,	_F4_Handler,	_F4_DESCRIPTION,	_F4_HELPTEXT	},		//read TC data
-	{ _F5_NAME, 	0,  3,	_F5_Handler,	_F5_DESCRIPTION,	_F5_HELPTEXT	},		//Set Command Sequence
-	{ _F6_NAME, 	0,  0,	_F6_Handler,	_F6_DESCRIPTION,	_F6_HELPTEXT	},		//Read Time
-	{ _F7_NAME, 	0,  0,	_F7_Handler,	_F7_DESCRIPTION,	_F7_HELPTEXT	},		//start test sequence
+	{ _F3_NAME, 	0,  0,	_F3_Handler,	_F3_DESCRIPTION,	_F3_HELPTEXT	},		//getai: read Analog data
+	{ _F4_NAME, 	0,  0,	_F4_Handler,	_F4_DESCRIPTION,	_F4_HELPTEXT	},		//getTC: read TC data
+	{ _F5_NAME, 	2,  3+TOTAL_SERVO_CHANNELS,	_F5_Handler,	_F5_DESCRIPTION,	_F5_HELPTEXT	},		//Set Command Sequence
+	{ _F6_NAME, 	0,  3,	_F6_Handler,	_F6_DESCRIPTION,	_F6_HELPTEXT	},		//setred: Set Redlines
+	{ _F7_NAME, 	0,  0,	_F7_Handler,	_F7_DESCRIPTION,	_F7_HELPTEXT	},		//Read Time
+	{ _F8_NAME, 	0,  0,	_F8_Handler,	_F8_DESCRIPTION,	_F8_HELPTEXT	},		//start test sequence
 
-	{ _F8_NAME,		1,  1,	_F8_Handler,	_F8_DESCRIPTION,	_F8_HELPTEXT	},		//setupdac: Send commands to DAC chip
-	{ _F9_NAME,		1,  1,	_F9_Handler,	_F9_DESCRIPTION,	_F9_HELPTEXT	},		//setupadc: Send commands to ADC chip
-	{ _F10_NAME,	0,  0,	_F10_Handler,	_F10_DESCRIPTION,	_F10_HELPTEXT	},		//setuptc: Send commands to TC chip
-	{ _F11_NAME,	0,  0,	_F11_Handler,	_F11_DESCRIPTION,	_F11_HELPTEXT	},		//i2cscan
+	{ _F9_NAME,		1,  1,	_F9_Handler,	_F9_DESCRIPTION,	_F9_HELPTEXT	},		//setupdac: Send commands to DAC chip
+	{ _F10_NAME,	1,  1,	_F10_Handler,	_F10_DESCRIPTION,	_F10_HELPTEXT	},		//setupadc: Send commands to ADC chip
+	{ _F11_NAME,	0,  0,	_F11_Handler,	_F11_DESCRIPTION,	_F11_HELPTEXT	},		//setuptc: Send commands to TC chip
+	{ _F12_NAME,	0,  0,	_F12_Handler,	_F12_DESCRIPTION,	_F12_HELPTEXT	},		//i2cscan
 	/*
 	{ _F12_NAME,	0,  0,	_F12_Handler,	_F12_DESCRIPTION,	_F12_HELPTEXT	},		//twiscan
 	{ _F13_NAME,	1,  3,	_F13_Handler,	_F13_DESCRIPTION,	_F13_HELPTEXT	},		//twiscan
@@ -241,11 +248,12 @@ static int _F3_Handler (void)
 		}
 	}
 
-
-
+/*
+	ReadData();//reads all data
 	if( xSemaphoreTake( dataSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
 	{
-		for(i=0; i<8; i++)
+
+		for(channel=0; channel<8; channel++)
 		{
 			//printf("ADC[%u]: 0x%02X, 0x%02X,", i, ADC_DataArray2[i*2], ADC_DataArray2[i*2+1]);
 			//ADC_DataArray[i] = (int16_t)((ADC_DataArray2[i*2] & 0xFF) << 8);
@@ -256,7 +264,7 @@ static int _F3_Handler (void)
 			//analogBuffer
 			//TCbuffer
 			//ServoPosition
-			printf("ADC[%u]: %d counts\r\n", i, analogBuffer[i]);
+			printf("ADC[%u]: %d counts\r\n", channel, analogBuffer[channel]);
 		}
 
 		//give data buffer semaphore
@@ -267,7 +275,7 @@ static int _F3_Handler (void)
 		// We could not obtain the semaphore and can therefore not access
 		// the shared resource safely.
 	}
-
+*/
 
 
 	return 0;
@@ -277,14 +285,19 @@ static int _F3_Handler (void)
 static int _F4_Handler (void)
 {
 
-	 uint8_t sel;
-	 uint16_t coldJunction;
-	 uint32_t temperature;
+	uint8_t sel;
+	uint16_t coldJunction;
+	uint16_t temperature;
+	float temp;
+	float tempCold;
 
 	for(sel=0;sel<4;sel++)
 	{
 		temperature=MAX31855read(sel, &coldJunction);
-		printf("TC%u: %u\r\n",sel,temperature);
+		temp = ((float)temperature)*.25;
+		tempCold=((float)coldJunction)*.0625;
+		//printf("TC%u: %f, %f \r\n",sel,temp,tempCold);
+		printf("TC%u: %u, %u \r\n",sel,temperature,coldJunction);
 	}
 
 	return 0;
@@ -293,12 +306,84 @@ static int _F4_Handler (void)
 //Set Command Sequence
 static int _F5_Handler (void)
 {
+	//setup the fire sequence
+	//commandMax=MAX_COMMANDS-1;
+	uint8_t channel;
+
+	if(NumberOfArguments() == 3+TOTAL_SERVO_CHANNELS)
+	{
+		commandNum = argAsInt(1);//when setup is complete CommandNum will be the last command
+		if (commandNum >= MAX_COMMANDS)
+		{
+			printf("Exceeded maximum sequence lines:\r\n");
+		}
+		else
+		{
+			commandTime[commandNum] =  argAsInt(2);//milliseconds
+
+			//the lowest 16 bits of argAsInt(3) represent the state of each DO channel
+			for(channel=0;channel<=TOTAL_DO_CHANNELS;channel++)
+			{
+				DO_Command[commandNum][channel] = (argAsInt(3) & (1<<channel)) >>channel;
+				printf("DO%u:%u\r\n",channel,DO_Command[commandNum][channel]);
+			}
+
+			for(channel=0;channel<=TOTAL_SERVO_CHANNELS;channel++)
+			{
+				Servo_Command[commandNum][channel] = argAsInt(4+channel);
+			}
+		}
+	}
+	else
+	{
+		printf("Wrong number of arguments.  Sequence must be of form:\r\n");
+		printf("CommandNum, milliseconds, %u DO bits, %u servo\r\n", TOTAL_DO_CHANNELS, TOTAL_SERVO_CHANNELS);
+	}
 
 	return 0;
 }
 
 
+//setup the Redline Triggers
 static int _F6_Handler (void)
+{
+	/*
+	uint8_t channel;
+
+	if(NumberOfArguments() == 2+TOTAL_DO_CHANNELS+TOTAL_SERVO_CHANNELS)
+	{
+
+		commandNum = argAsInt(1);//when setup is complete CommandNum will be the last command
+		if (commandNum >= MAX_COMMANDS)
+		{
+			printf("Exceeded maximum sequence lines:\r\n");
+		}
+		else
+		{
+			commandTime[commandNum] =  argAsInt(2);//milliseconds
+
+			for(channel=0;channel<=TOTAL_DO_CHANNELS;channel++)
+			{
+				DO_Command[commandNum][channel] = argAsInt(2+channel);
+			}
+
+			for(channel=0; channel<=TOTAL_SERVO_CHANNELS; channel++)
+			{
+				Servo_Command[commandNum][channel] = argAsInt(2+TOTAL_DO_CHANNELS+channel);
+			}
+		}
+	}
+	else
+	{
+		printf("Wrong number of arguments.  Sequence must be of form:\r\n");
+		printf("CommandNum, milliseconds, %u DO, %u servo\r\n", TOTAL_DO_CHANNELS, TOTAL_SERVO_CHANNELS);
+	}
+*/
+
+	return 0;
+}
+
+static int _F7_Handler (void)
 {
 	printf("Chip Status:\r\n");
 	printf("Input Clock Rate: %u MHz\r\n", Chip_Clock_GetMainOscRate()/1000000);
@@ -311,7 +396,7 @@ static int _F6_Handler (void)
 
 
 //Fire.  Start test sequence
-static int _F7_Handler (void)
+static int _F8_Handler (void)
 {
 
 	// Emergency Stop
@@ -338,7 +423,7 @@ static int _F7_Handler (void)
 
 
 //setupdac: Send commands to DAC chip
-static int _F8_Handler (void)
+static int _F9_Handler (void)
 {
 	//send commands to the Analog Output chip
 
@@ -346,12 +431,12 @@ static int _F8_Handler (void)
 	//uint8_t SendBuffer[4];
 
 	uint8_t CommandNumber = argAsInt(1);
-	uint16_t DACVaule = argAsInt(2);
+	uint16_t DACValue = argAsInt(2);
 
 	if((CommandNumber > 0) && (CommandNumber < 6))
 	{
-		printf("Set DAC %u to 0x%04X\r\n", CommandNumber, DACVaule);
-		AD5666SetVoltage(CommandNumber, DACVaule);
+		printf("Set DAC %u to 0x%04X\r\n", CommandNumber, DACValue);
+		AD5666SetVoltage(CommandNumber, DACValue);
 	}
 
 	else
@@ -360,20 +445,20 @@ static int _F8_Handler (void)
 		{
 		case 6:
 			//Modify the CS pin
-			printf("Select %u\r\n", DACVaule);
-			AD5666Select((uint8_t)DACVaule);
+			printf("Select %u\r\n", DACValue);
+			AD5666Select((uint8_t)DACValue);
 			break;
 
 		case 7:
 			//Modify the update pin
-			printf("Update %u\r\n", DACVaule);
-			AD5666Update((uint8_t)DACVaule);
+			printf("Update %u\r\n", DACValue);
+			AD5666Update((uint8_t)DACValue);
 			break;
 
 		case 8:
 			//Modify the clear pin
-			printf("Clear %u\r\n", DACVaule);
-			AD5666Clear((uint8_t)DACVaule);
+			printf("Clear %u\r\n", DACValue);
+			AD5666Clear((uint8_t)DACValue);
 			break;
 
 		}
@@ -383,7 +468,7 @@ static int _F8_Handler (void)
 }
 
 //setupadc: Send commands to ADC chip
-static int _F9_Handler (void)
+static int _F10_Handler (void)
 {
 	uint8_t channel;
 	uint8_t chipsel;
@@ -466,7 +551,7 @@ static int _F9_Handler (void)
 }
 
 //setuptc: Send commands to TC chip
-static int _F10_Handler (void)
+static int _F11_Handler (void)
 {
 
 
@@ -474,7 +559,7 @@ static int _F10_Handler (void)
 }
 
 //i2cscan
-static int _F11_Handler (void)
+static int _F12_Handler (void)
 {
 	uint8_t i;
 	uint8_t DummyByte = 0x0A;

@@ -85,11 +85,11 @@ void MAX31855Select( uint8_t sel )
 	return;
 }
 
-uint32_t MAX31855read( uint8_t sel, uint16_t *coldJunction )
+uint16_t MAX31855read( uint8_t sel, uint16_t *coldJunction )
 {
 	//return temperature. 0 is at 0deg C.  Each bit is .25 deg C
 	uint8_t ReceiveBuffer[4];
-	uint32_t temperature;
+	uint16_t temperature;
 	uint8_t err;
 	
 	Chip_SSP_DATA_SETUP_T xf_setup;
@@ -117,8 +117,8 @@ uint32_t MAX31855read( uint8_t sel, uint16_t *coldJunction )
 	MAX31855Select (0xFF);//deselect all TC chips
 	
 
-	temperature = ((uint32_t)ReceiveBuffer[0] << 6) | ((uint32_t)ReceiveBuffer[1] >> 2);//.25deg C per bit starting at 0C
-	*coldJunction = ((uint32_t)ReceiveBuffer[2]<<4) | ((uint32_t)ReceiveBuffer[3]>>4);//.0625deg C per bit starting at 0C
+	temperature = ((uint16_t)ReceiveBuffer[0] << 6) | ((uint16_t)ReceiveBuffer[1] >> 2);//.25deg C per bit starting at 0C
+	*coldJunction = ((uint16_t)ReceiveBuffer[2]<<4) | ((uint16_t)ReceiveBuffer[3]>>4);//.0625deg C per bit starting at 0C
 	
 	printf("%u %u %u %u\r\n",ReceiveBuffer[0],ReceiveBuffer[1],ReceiveBuffer[2],ReceiveBuffer[3]);
 	err = (ReceiveBuffer[3] & 0x1);

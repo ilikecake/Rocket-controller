@@ -37,6 +37,6 @@
 void MAX31855Init(void);
 void MAX31855Select( uint8_t sel );
 
-uint32_t MAX31855read( uint8_t sel, uint16_t *coldJunction );
+uint16_t MAX31855read( uint8_t sel, uint16_t *coldJunction );
 
 #endif
