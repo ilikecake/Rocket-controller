@@ -191,7 +191,7 @@ void Board_Debug_Init(void)
 
 	/* Setup UART for 115.2K8N1 */
 	Chip_UART_Init(DEBUG_UART);
-	Chip_UART_SetBaud(DEBUG_UART, 115200);
+	Chip_UART_SetBaud(DEBUG_UART, 230400);//115200
 	Chip_UART_ConfigData(DEBUG_UART, UART_DATABIT_8, UART_PARITY_NONE, UART_STOPBIT_1);
 
 	/* Enable UART Transmit */

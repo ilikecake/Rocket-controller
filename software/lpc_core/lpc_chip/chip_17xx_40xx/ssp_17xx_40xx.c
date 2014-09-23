@@ -443,8 +443,8 @@ void Chip_SSP_Init(LPC_SSP_T *pSSP)
 
 	IP_SSP_Set_Mode(pSSP, SSP_MODE_MASTER);
 	IP_SSP_SetFormat(pSSP, SSP_BITS_8, SSP_FRAMEFORMAT_SPI, SSP_CLOCK_CPHA1_CPOL0);
-	Chip_SSP_SetBitRate(pSSP, 100000);
-	//Chip_SSP_SetBitRate(pSSP, 400000);
+	//Chip_SSP_SetBitRate(pSSP, 100000);
+	Chip_SSP_SetBitRate(pSSP, 400000);
 }
 
 /* De-initializes the SSP peripheral */

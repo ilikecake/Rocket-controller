@@ -232,7 +232,6 @@ static int _F3_Handler (void)
 //read Temperatures
 static int _F4_Handler (void)
 {
-
 	uint8_t sel;
 	uint16_t coldJunction;
 	uint16_t temperature;
@@ -244,9 +243,9 @@ static int _F4_Handler (void)
 		temperature=MAX31855read(sel, &coldJunction);
 		printf("TC%u: %u, %u \r\n",sel,temperature,coldJunction);
 
-		temp = ((float)temperature)*.25;
-		tempCold=((float)coldJunction)*.0625;
-		printf("TC%u: %s, %s \r\n",sel,temp,tempCold);
+		//temp = ((float)temperature)*.25;
+		//tempCold=((float)coldJunction)*.0625;
+		//printf("TC%u: %s, %s \r\n",sel,temp,tempCold);
 
 	}
 

@@ -115,7 +115,6 @@ void ReadData(void)
 
 	if( xSemaphoreTake( dataSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
 	{
-
 		//record data acquisition start time
 		dataTime[0] = xTaskGetTickCount();
 
@@ -127,10 +126,9 @@ void ReadData(void)
 
 			for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
 			{
-				analogBuffer[channel] = DataSet[channel-chipsel*AI_CHANNELS_PER_CHIP];
+				analogBuffer[channel+chipsel*AI_CHANNELS_PER_CHIP] = DataSet[channel];
 			}
 		}
-
 
 		for(channel=0;channel<TC_CHIPS;channel++)
 		{
@@ -140,7 +138,6 @@ void ReadData(void)
 
 		//record data acquisition end time
 		dataTime[1] = xTaskGetTickCount();
-
 
 		//give data buffer semaphore
 		xSemaphoreGive(dataSemaphore);
@@ -158,8 +155,6 @@ void SendData(void)
 {
 	uint8_t channel;
 	uint8_t chipsel;
-	//uint16_t DataSet[8];
-
 
 	//select UART channel which will send data back to the computer
 
@@ -177,14 +172,12 @@ void SendData(void)
 			for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
 			{
 				sendSerialUInt16(analogBuffer[channel],DEBUG_UART);
-				//sendSerialUInt16(chipsel*AI_CHANNELS_PER_CHIP+channel,DEBUG_UART);
 			}
 		}
 
-
+		//send temperature then cold junction data for each TC "channel"
 		for(channel=0;channel<2*TC_CHIPS;channel++)
 		{
-			//send temperature then cold junction data for each TC "channel"
 			sendSerialUInt16(TCbuffer[channel],DEBUG_UART);
 		}
 
@@ -203,7 +196,6 @@ void SendData(void)
 		sendSerialUInt16(45,DEBUG_UART);//spare
 		sendSerialUInt16(46,DEBUG_UART);//spare
 		sendSerialUInt16(47,DEBUG_UART);//spare
-
 
 		//give data buffer semaphore
 		xSemaphoreGive(dataSemaphore);

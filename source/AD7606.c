@@ -1,10 +1,11 @@
 /*
  * ad7606.c
+
  *
  *  Created on: Oct 11, 2013
  *      Author: pat
  */
-
+//Analog to digital converter
 
 #include "main.h"
 

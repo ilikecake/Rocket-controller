@@ -225,7 +225,7 @@ void vDataAquisitionTask(void * pvParameters ) {
 	uint8_t g = 0;
 
 	//interval=configTICK_RATE_HZ/100;//Set frequency to 100 loops per second
-	interval=configTICK_RATE_HZ/2;//Set frequency to 1 loops per second
+	interval=configTICK_RATE_HZ/50;//Set frequency to 1 loops per second
 
 
 	vTaskSuspend( NULL );//suspend current task
