@@ -43,6 +43,14 @@ void InitControl(void)
 	runningControl = 0;		//not running a test sequence
 	runningData = 0;		//not reading data from TC chip and A/D
 	activeSaveData=0;	//not saving data to flash memory
+
+
+	//give values to servo position
+	for (i=0;i<TOTAL_SERVO_CHANNELS;i++)
+	{
+		ServoPosition[i] = 0;
+	}
+
 	return;
 	
 }
@@ -50,9 +58,16 @@ void InitControl(void)
 void UpdateCommand(uint32_t tNow)
 {
 	uint8_t i;
+	uint8_t g;
+	g=0;
 	for (i=0;i<TOTAL_DO_CHANNELS;i++)
 	{
-		Board_DO_Set(i, 0);//set all outputs to 0
+		if (g==0)
+		{g=1;}
+		else if (g==1)
+		{g=0;}
+
+		Board_DO_Set(i, g);//set all outputs to 0
 	}
 
 	/*
@@ -98,31 +113,29 @@ void ReadData(void)
 	uint8_t chipsel;
 	uint16_t DataSet[8];
 
-
 	if( xSemaphoreTake( dataSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
 	{
+
 		//record data acquisition start time
 		dataTime[0] = xTaskGetTickCount();
 
 		//put analog channel data into buffer
 		for(chipsel=0;chipsel<AI_CHIPS;chipsel++)
 		{
-		 //get analog data from chip "chipsel"
-		 AD7606GetDataSet(chipsel, &DataSet);
+			//get analog data from chip "chipsel"
+			AD7606GetDataSet(chipsel, DataSet);
 
-		 for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
-		 {
-			 analogBuffer[channel] = DataSet[channel-chipsel*AI_CHANNELS_PER_CHIP];
-		 }
+			for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
+			{
+				analogBuffer[channel] = DataSet[channel-chipsel*AI_CHANNELS_PER_CHIP];
+			}
 		}
 
 
 		for(channel=0;channel<TC_CHIPS;channel++)
 		{
-		 //get temperature and cold junction data for "channel"
-		 TCbuffer[channel]=MAX31855read(channel, &TCbuffer[channel+TC_CHIPS]);
-
-		 //printf("TC%u: %u\r\n",sel,temperature);
+			//get temperature and cold junction data for "channel"
+			TCbuffer[channel]=MAX31855read(channel, &TCbuffer[channel+TC_CHIPS]);
 		}
 
 		//record data acquisition end time
@@ -138,7 +151,6 @@ void ReadData(void)
 		// the shared resource safely.
 	}
 
-
 	return;
 }
 
@@ -146,33 +158,51 @@ void SendData(void)
 {
 	uint8_t channel;
 	uint8_t chipsel;
-	uint16_t DataSet[8];
-	uint8_t UARTchannel;
+	//uint16_t DataSet[8];
+
 
 	//select UART channel which will send data back to the computer
-	UARTchannel=1;
 
 	if( xSemaphoreTake( dataSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
 	{
 
-		sendSerialUInt32(dataTime[0],UARTchannel);//send data acquisition start time
-		sendSerialUInt32(dataTime[1],UARTchannel);//send data acquisition end time
+		sendSerialUint8(0xFF, DEBUG_UART);//send data start flag
 
+		sendSerialUInt32(dataTime[0],DEBUG_UART);//send data acquisition start time
+		sendSerialUInt32(dataTime[1],DEBUG_UART);//send data acquisition end time
 
 		//send analog channel data from buffer
 		for(chipsel=0;chipsel<AI_CHIPS;chipsel++)
 		{
 			for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
 			{
-				sendSerialUInt16(analogBuffer[channel],UARTchannel);
+				sendSerialUInt16(analogBuffer[channel],DEBUG_UART);
+				//sendSerialUInt16(chipsel*AI_CHANNELS_PER_CHIP+channel,DEBUG_UART);
 			}
 		}
+
 
 		for(channel=0;channel<2*TC_CHIPS;channel++)
 		{
 			//send temperature then cold junction data for each TC "channel"
-			sendSerialUInt16(TCbuffer[channel],UARTchannel);
+			sendSerialUInt16(TCbuffer[channel],DEBUG_UART);
 		}
+
+
+		for(channel=0;channel<TOTAL_SERVO_CHANNELS;channel++)
+		{
+			//sendSerialUInt16(ServoPosition[channel],DEBUG_UART);
+			//sendSerialUInt16(ServoPosition[channel],DEBUG_UART);//servo torque
+			sendSerialUInt16(42,DEBUG_UART);
+			sendSerialUInt16(43,DEBUG_UART);//servo torque
+		}
+
+
+		//spare outputs
+		sendSerialUInt16(44,DEBUG_UART);//spare
+		sendSerialUInt16(45,DEBUG_UART);//spare
+		sendSerialUInt16(46,DEBUG_UART);//spare
+		sendSerialUInt16(47,DEBUG_UART);//spare
 
 
 		//give data buffer semaphore
@@ -192,7 +222,6 @@ void SendData(void)
 
 void SaveDataToFlash(void) //uint32_t *dataTime[], uint16_t *analogBuffer[], uint16_t *TCbuffer[], uint16_t *ServoPosition[], uint8_t runningControl, uint8_t activeEstop)
 {
-
 
      if( xSemaphoreTake( dataSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
      {

@@ -97,21 +97,31 @@ static void Board_LED_Init(void)
  * Note: LED numbers start at 1						*/
 void Board_DO_Set(uint8_t channel, bool state)
 {
-	/*
-	On = !On;
-	if (LEDNumber == 1)
+
+
+	if (channel == 0)
 	{
-		Chip_GPIO_WritePortBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, On);
+		Chip_GPIO_WritePortBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, state);
 	}
-	else if(LEDNumber == 2)
+	else if(channel == 1)
 	{
-		Chip_GPIO_WritePortBit(LPC_GPIO, LED1_GPIO_PORT_NUM, LED1_GPIO_BIT_NUM, On);
+		Chip_GPIO_WritePortBit(LPC_GPIO, LED1_GPIO_PORT_NUM, LED1_GPIO_BIT_NUM, state);
 	}
-	else if(LEDNumber == 3)
+	else if(channel == 2)
 	{
-		Chip_GPIO_WritePortBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, On);
+		Chip_GPIO_WritePortBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, state);
 	}
-	*/
+	else if(channel == 3)
+	{
+		Chip_GPIO_WritePortBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, state);
+	}
+	else
+	{
+		Chip_GPIO_WritePortBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, state);
+
+	}
+
+	return;
 }
 
 /*****************************************************************************
@@ -119,49 +129,42 @@ void Board_DO_Set(uint8_t channel, bool state)
  ****************************************************************************/
 
 //send a 32 bit number over UART
-void sendSerialUInt32(uint32_t msg, char channel){
-	sendSerialChar(msg>>24, channel);//send MSB
-	sendSerialChar((msg && 0xFF0000)>>16, channel);
-	sendSerialChar((msg && 0xFF00)>>8, channel);
-	sendSerialChar(msg && 0xFF, channel);//send LSB
+void sendSerialUInt32(uint32_t msg, LPC_USART_T *pUART){
+	sendSerialUint8(  (uint8_t)(msg>>24), pUART);//send MSB
+	sendSerialUint8(  (uint8_t)(msg>>16), pUART);
+	sendSerialUint8(  (uint8_t)(msg>>8) , pUART);
+	sendSerialUint8(  (uint8_t)(msg) , pUART);//send LSB
 }
 
-//send a16 bit number over UART
-void sendSerialUInt16(uint16_t msg, char channel){
-	sendSerialChar(msg>>8, channel);//send MSB
-	sendSerialChar(msg && 0xFF, channel);//send LSB
+//send a 16 bit number over UART
+void sendSerialUInt16(uint16_t msg, LPC_USART_T *pUART){
+	sendSerialUint8(  (uint8_t)(msg>>8) , pUART);//send MSB
+	sendSerialUint8(  (uint8_t)(msg) , pUART);//send LSB
+
+	//IP_UART_SendByte( channel, msg>>8);//send MSB
+	//IP_UART_SendByte( channel, msg && 0xFF);//send LSB
+
 }
 
 //send character over UART
-void sendSerialChar(char msg, char channel) {
+void sendSerialUint8(uint8_t msg, LPC_USART_T *pUART) {
 	//send a single character over serial
 	//do not send a new line using this function
-	if (channel == 0){
-		while(!(LPC_UART0->LSR & 0x20));	// Block until tx empty
-		LPC_UART0->THR = msg;
-		}
-	if (channel == 1){
-		while(!(LPC_UART1->LSR & 0x20));	// Block until tx empty
-		LPC_UART1->THR = msg;
-		}
-	if (channel == 2){
-		while(!(LPC_UART2->LSR & 0x20));	// Block until tx empty
-		LPC_UART2->THR = msg;
-		}
-	if (channel == 3){
-		while(!(LPC_UART3->LSR & 0x20));	// Block until tx empty
-		LPC_UART3->THR = msg;
-		}
+
+	//while(!(LPC_UART0->LSR & 0x20));	// Block until tx empty
+	//LPC_UART0->THR = msg;
+	while (Chip_UART_SendByte(pUART, msg) == ERROR) {}//IP_UART_SendByte should also work
+
 }
 
 //send NewLine over UART
-void sendSerialNewline(char num, char  channel){
+void sendSerialNewline(char num, LPC_USART_T *pUART){
 
     signed char i;
 
     for (i = 0; i < num; i++){
-	    sendSerialChar(0x0A, channel);
-        sendSerialChar(0x0D, channel);
+    	sendSerialUint8(0x0A, pUART);
+    	sendSerialUint8(0x0D, pUART);
     }
 
 }
@@ -195,6 +198,31 @@ void Board_Debug_Init(void)
 	Chip_UART_TxCmd(DEBUG_UART, ENABLE);
 #endif
 }
+
+
+/*******************************************************************************
+* Function Name : UART_RTSConfig
+* Description : Sets or Resets the RTS signal
+* Input : - UARTx: where x can be 0,1 or 2 to select the UART peripheral.
+* - RTSState: new state of the RTS signal.
+* This parameter can be: RTSSET or RTSRESET
+* Output : None
+* Return : None
+*******************************************************************************/
+#define U1MCR (uint32_t)0x40010010; //UART1 Modem Control Register
+void UART_RTSConfig( LPC_USART_T *pUART, uint8_t RTSState)//LPC_USART_T
+{
+	/*
+	if(RTSState == 1)
+	{
+	UARTx->CR |= UART_MCR_RTS_CTRL; //UART_INTSTS_RTS;
+	}
+	else if(RTSState == RTSSET)
+	{
+	UARTx->CR &= ~UART_MCR_RTS_CTRL; //UART_INTSTS_RTS;
+	*/
+}
+
 
 /* Sends a character on the UART */
 void Board_UARTPutChar(char ch)
@@ -376,7 +404,10 @@ void Board_I2C_Init(I2C_ID_T id)
 		Chip_IOCON_EnableOD(LPC_IOCON, 0, 11);
 		break;
 	}
+
+	return;
 }
+
 /*
 void Board_Buttons_Init(void)
 {

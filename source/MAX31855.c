@@ -78,10 +78,20 @@ void MAX31855Select( uint8_t sel )
 		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS4_PIN, false);	//chip is selected
 		break;
 		
+	case 4://TODO move these chip select pins to the new chips
+		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS1_PIN, false);	//chip is selected
+		break;
+	case 5:
+		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS2_PIN, false);	//chip is selected
+		break;
+	case 6:
+		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS3_PIN, false);	//chip is selected
+		break;
+	case 7:
+		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS4_PIN, false);	//chip is selected
+		break;
 		}
 
-
-	
 	return;
 }
 
@@ -120,7 +130,7 @@ uint16_t MAX31855read( uint8_t sel, uint16_t *coldJunction )
 	temperature = ((uint16_t)ReceiveBuffer[0] << 6) | ((uint16_t)ReceiveBuffer[1] >> 2);//.25deg C per bit starting at 0C
 	*coldJunction = ((uint16_t)ReceiveBuffer[2]<<4) | ((uint16_t)ReceiveBuffer[3]>>4);//.0625deg C per bit starting at 0C
 	
-	printf("%u %u %u %u\r\n",ReceiveBuffer[0],ReceiveBuffer[1],ReceiveBuffer[2],ReceiveBuffer[3]);
+	//printf("%u %u %u %u\r\n",ReceiveBuffer[0],ReceiveBuffer[1],ReceiveBuffer[2],ReceiveBuffer[3]);
 	err = (ReceiveBuffer[3] & 0x1);
 
 	if (err == 1)

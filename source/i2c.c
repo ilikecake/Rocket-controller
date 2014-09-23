@@ -150,7 +150,7 @@ void i2c_app_init(I2C_ID_T id, int speed)
 			DEBUGOUT("   ");
 			continue;
 		}
-		/* Address 0x48 points to LM75AIM device which needs 2 bytes be read *//*
+		// Address 0x48 points to LM75AIM device which needs 2 bytes be read
 		if(Chip_I2C_MasterRead(i2c, i, ch, 1 + (i == 0x48)) > 0)
 			DEBUGOUT(" %02X", i);
 		else

@@ -47,7 +47,7 @@
 #define AD7606_RANGE_10V	0x01
 
 //ADC clock rate in HZ (NOTE: this clock rate will get inaccurate above ~1MHZ with the current clocking (30MHZ PCLK))
-#define AD7606_DATA_CLOCK_HZ	1000
+#define AD7606_DATA_CLOCK_HZ	10000//was 1000
 
 //Status defines
 #define AD7606_STATUS_SHUTDOWN		0x01		//Indicates the ADC is in shutdown mode
@@ -84,7 +84,7 @@ void AD7606WaitReady(void);
 void AD7606StartDataClock(uint32_t ClockRateToSet);
 
 uint8_t AD7606GetStatus(void);
-void AD7606GetDataSet(uint8_t sel, uint16_t *DataSet);
+void AD7606GetDataSet(uint8_t sel, uint16_t* DataSet);
 
 
 

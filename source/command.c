@@ -131,7 +131,6 @@ static void ParseCommand(void)
 //TODO: set up the forward and back arrows to work using backspace
 void CommandGetInputChar(uint8_t c)
 {
-	int i;
 	uint8_t outByte[2];
 	outByte[0] = c;
 	outByte[1] = '\0';
@@ -497,7 +496,6 @@ int32_t argAsInt(uint8_t argNum)
 static int HELP_C (void)
 {
 	uint8_t i;
-	uint8_t j;
 	
 	if(numArgs > 0)
 	{

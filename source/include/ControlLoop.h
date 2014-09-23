@@ -60,6 +60,8 @@ uint8_t activeEstop;
 
 //buffers to store all data
 xSemaphoreHandle dataSemaphore;	//control data handling
+xSemaphoreHandle servoSemaphore;	//don't allow new commands to be sent to servo before old commands are complete
+
 uint32_t dataTime[2];	//store start and end time of data sample
 uint16_t analogBuffer[AI_CHIPS*AI_CHANNELS_PER_CHIP];	//store all analog input channels
 uint16_t TCbuffer[2*TC_CHIPS*TC_CHANNELS_PER_CHIP];			//store temperature and cold junction  for each TC channel
@@ -70,6 +72,7 @@ void InitControl(void);
 //void MainControlLoop(void);
 void UpdateCommand(uint32_t tNow);
 void ReadData(void);
+void SendData(void);
 
 void SaveDataToFlash(void);//uint32_t *dataTime[], uint16_t *analogBuffer[], uint16_t *TCbuffer[], uint16_t *ServoPosition[], uint8_t runningControl, uint8_t activeEstop);
 //void FinishSaveData();

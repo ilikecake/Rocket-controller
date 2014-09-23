@@ -29,7 +29,7 @@
 //#include "board.h"
 
 //The number of commands
-const uint8_t NumCommands = 12;
+const uint8_t NumCommands = 13;
 
 //Handler function declarations
 
@@ -107,51 +107,15 @@ const char _F12_NAME[]  			= "i2cscan";
 const char _F12_DESCRIPTION[]  	= "Scan the I2C Bus";
 const char _F12_HELPTEXT[]  		= "'i2cscan' has no parameters";
 
+//Enables or disables data read and data send
+static int _F13_Handler (void);
+const char _F13_NAME[]  			= "datastart";
+const char _F13_DESCRIPTION[]  	= "Enable/Disable data";
+const char _F13_HELPTEXT[]  		= "'datastart' <1>";
 
 
 
 /*
-
-
-
-
-
-
-//Set up the calibration for the internal temperature sensor
-static int _F7_Handler (void);
-const char _F7_NAME[] PROGMEM 			= "tempcal";
-const char _F7_DESCRIPTION[] PROGMEM 	= "Calibrate the internal temperature sensor";
-const char _F7_HELPTEXT[] PROGMEM 		= "'tempcal' has no parameters";
-
-//Test the buzzer
-static int _F8_Handler (void);
-const char _F8_NAME[] PROGMEM 			= "beep";
-const char _F8_DESCRIPTION[] PROGMEM 	= "Test the buzzer";
-const char _F8_HELPTEXT[] PROGMEM 		= "beep <time>";
-
-//Turn the relay on or off
-static int _F9_Handler (void);
-const char _F9_NAME[] PROGMEM 			= "relay";
-const char _F9_DESCRIPTION[] PROGMEM 	= "Control the relay";
-const char _F9_HELPTEXT[] PROGMEM 		= "relay <state>";
-
-//Manual calibration of the ADC
-static int _F10_Handler (void);
-const char _F10_NAME[] PROGMEM 			= "cal";
-const char _F10_DESCRIPTION[] PROGMEM 	= "Calibrate the ADC";
-const char _F10_HELPTEXT[] PROGMEM 		= "'cal' has no parameters";
-
-//Get temperatures from the ADC
-static int _F11_Handler (void);
-const char _F11_NAME[] PROGMEM 			= "temp";
-const char _F11_DESCRIPTION[] PROGMEM 	= "Get temperatures from the ADC";
-const char _F11_HELPTEXT[] PROGMEM 		= "'temp' has no parameters";
-
-//Scan the TWI bus for devices
-static int _F12_Handler (void);
-const char _F12_NAME[] PROGMEM 			= "twiscan";
-const char _F12_DESCRIPTION[] PROGMEM 	= "Scan for TWI devices";
-const char _F12_HELPTEXT[] PROGMEM 		= "'twiscan' has no parameters";
 
 //Dataflash functions
 static int _F13_Handler (void);
@@ -176,9 +140,8 @@ const CommandListItem AppCommandList[] =
 	{ _F10_NAME,	1,  1,	_F10_Handler,	_F10_DESCRIPTION,	_F10_HELPTEXT	},		//setupadc: Send commands to ADC chip
 	{ _F11_NAME,	0,  0,	_F11_Handler,	_F11_DESCRIPTION,	_F11_HELPTEXT	},		//setuptc: Send commands to TC chip
 	{ _F12_NAME,	0,  0,	_F12_Handler,	_F12_DESCRIPTION,	_F12_HELPTEXT	},		//i2cscan
-	/*
-	{ _F12_NAME,	0,  0,	_F12_Handler,	_F12_DESCRIPTION,	_F12_HELPTEXT	},		//twiscan
-	{ _F13_NAME,	1,  3,	_F13_Handler,	_F13_DESCRIPTION,	_F13_HELPTEXT	},		//twiscan
+	{ _F13_NAME,	1,  1,	_F13_Handler,	_F13_DESCRIPTION,	_F13_HELPTEXT	},		//datastart: enables or disables data read and data send
+	/*	{ _F13_NAME,	1,  3,	_F13_Handler,	_F13_DESCRIPTION,	_F13_HELPTEXT	},		//twiscan
 	*/
 };
 
@@ -210,7 +173,6 @@ static int _F1_Handler (void)
 //Servo Valve Control Function
 static int _F2_Handler (void)
 {
-	uint8_t n;
 
 	//argAsInt(1) is Digital Output channel
 	//argAsInt(2) is state of valve
@@ -248,34 +210,20 @@ static int _F3_Handler (void)
 		}
 	}
 
-/*
-	ReadData();//reads all data
-	if( xSemaphoreTake( dataSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
+
+
+	portTickType tickTime;
+	portTickType interval;
+	//interval=configTICK_RATE_HZ/100;//Set frequency to 100 loops per second
+	interval=configTICK_RATE_HZ/5;//Set frequency to 5 loops per second
+
+	while (1)
 	{
-
-		for(channel=0; channel<8; channel++)
-		{
-			//printf("ADC[%u]: 0x%02X, 0x%02X,", i, ADC_DataArray2[i*2], ADC_DataArray2[i*2+1]);
-			//ADC_DataArray[i] = (int16_t)((ADC_DataArray2[i*2] & 0xFF) << 8);
-			//ADC_DataArray[i] |= (int16_t)((ADC_DataArray2[i*2+1]) & 0xFF);
-			//printf(" %d counts\r\n", ADC_DataArray[i]);
-
-			//dataTime
-			//analogBuffer
-			//TCbuffer
-			//ServoPosition
-			printf("ADC[%u]: %d counts\r\n", channel, analogBuffer[channel]);
-		}
-
-		//give data buffer semaphore
-		xSemaphoreGive(dataSemaphore);
+		tickTime = xTaskGetTickCount();
+		ReadData();
+		SendData();
+		vTaskDelayUntil(&tickTime,interval);
 	}
-	else
-	{
-		// We could not obtain the semaphore and can therefore not access
-		// the shared resource safely.
-	}
-*/
 
 
 	return 0;
@@ -294,10 +242,12 @@ static int _F4_Handler (void)
 	for(sel=0;sel<4;sel++)
 	{
 		temperature=MAX31855read(sel, &coldJunction);
+		printf("TC%u: %u, %u \r\n",sel,temperature,coldJunction);
+
 		temp = ((float)temperature)*.25;
 		tempCold=((float)coldJunction)*.0625;
-		//printf("TC%u: %f, %f \r\n",sel,temp,tempCold);
-		printf("TC%u: %u, %u \r\n",sel,temperature,coldJunction);
+		printf("TC%u: %s, %s \r\n",sel,temp,tempCold);
+
 	}
 
 	return 0;
@@ -322,6 +272,7 @@ static int _F5_Handler (void)
 			commandTime[commandNum] =  argAsInt(2);//milliseconds
 
 			//the lowest 16 bits of argAsInt(3) represent the state of each DO channel
+			//DO0 is LSB, DO16 is MSB
 			for(channel=0;channel<=TOTAL_DO_CHANNELS;channel++)
 			{
 				DO_Command[commandNum][channel] = (argAsInt(3) & (1<<channel)) >>channel;
@@ -578,7 +529,56 @@ static int _F12_Handler (void)
 }
 
 
+//datastart: Enable/Disable dataread and datasend tasks
+static int _F13_Handler (void)
+{
+	portTickType tickTime;
+	portTickType interval;
+	uint8_t g = 0;
 
+	if (argAsInt(1)==1)
+	{
+		vTaskResume(vDataAquisitionTaskHandle);//make sure data is being acquired
+		//vTaskResume(vServoReadTask);//make sure data is being acquired
+		//vTaskResume(vDataSendTask);//make sure data is being acquired
+	}
+	else if (argAsInt(1)==0)
+	{
+		vTaskSuspend(vDataAquisitionTaskHandle);//make sure data is being acquired
+		//vTaskSuspend(vServoReadTask);//make sure data is being acquired
+		//vTaskSuspend(vDataSendTask);//make sure data is being acquired
+	}
+	else if (argAsInt(1)==3)
+	{
+		//vTaskResume(vDataAquisitionTaskHandle);//make sure data is being acquired
+		//vTaskResume(vServoReadTask);//make sure data is being acquired
+		//vTaskResume(vDataSendTask);//make sure data is being acquired
+
+		printf("Data Speed Test Start\r\n");
+		tickTime = xTaskGetTickCount();
+		for(g=0;g<50;g++)
+		{
+			ReadData();
+			SendData();//takes 6.88ms
+
+			vTaskDelay(10);
+		}
+		interval= xTaskGetTickCount();
+		printf("\r\nElapsed Time =%dms\r\n",interval-tickTime-500);
+
+	/*
+	3.22	ms/ AI read
+	1.94	ms/TC read
+	6.86	ms/send
+	0.2		ms/DO
+	2?		ms/servo out
+	2?		ms/servo read
+	62	Hz max
+	 */
+	}
+
+	return 0;
+}
 
 
 

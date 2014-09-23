@@ -13,10 +13,6 @@ uint8_t ADC_SampleCount;
 int16_t ADC_DataArray[8];
 uint8_t ADC_Status;
 
-//uint8_t ADC_DataArray2[16];		//TODO: remove this later
-
-
-
 
 void AD7606Init(void)
 {
@@ -40,7 +36,7 @@ void AD7606Init(void)
 
 	TCA9554A_SetConfig(AD7606_IO_EXP_ADDR, 0x18);//~((1<<AD7606_OS0_BIT) | (1<<AD7606_OS1_BIT) | (1<<AD7606_OS2_BIT) | (1<<AD7606_STANDBY_BIT) | (1<<AD7606_RANGE_BIT) | (1<<AD7606_RESET_BIT)) );
 
-	AD7606SetOSMode(AD7606_OS_RATIO_4);
+	AD7606SetOSMode(AD7606_OS_RATIO_4);//set how many samples will be filtered to get one output
 	AD7606SetPowerMode(AD7606_POWER_MODE_ON);
 	AD7606SetRange(AD7606_RANGE_5V);
 
@@ -79,7 +75,6 @@ void AD7606Init(void)
 	NVIC_DisableIRQ(TIMER2_IRQn);
 	NVIC_SetPriority(TIMER2_IRQn, 0x00);	//Set interrupt to high priority (0 is highest, 31 is 0x1F is lowest.)
 	NVIC_EnableIRQ(TIMER2_IRQn);
-
 
 
 
@@ -198,29 +193,17 @@ void TIMER2_IRQHandler(void)
 
 	Chip_TIMER_ClearMatch(LPC_TIMER2, 1);
 
-	/*if(ADC_Dataclock_Count == 0)
-	{
-		ADC_Dataclock_Count = 1;
-	}
-	else
-	{
-		ADC_Dataclock_Count = 0;
-	}
-
-	Board_LED_Set(2, (bool)ADC_Dataclock_Count);*/
+	//Board_LED_Set(2, (bool)ADC_Dataclock_Count);
 
 	if(ADC_Dataclock_Count == 1)
 	{
-		//ADC_DataArray2[ADC_SampleCount*2] = (uint8_t)(Chip_GPIO_ReadPort(LPC_GPIO, 2) & 0xFF);
 		ADC_DataArray[ADC_SampleCount] = (int16_t)((Chip_GPIO_ReadPort(LPC_GPIO, 2) & 0xFF) << 8);
 		//ADC_DataArray[ADC_SampleCount] = (int16_t)(Chip_GPIO_ReadPort(LPC_GPIO, 2) & 0xFF);
 		ADC_Dataclock_Count++;
 	}
 	else if(ADC_Dataclock_Count == 3)
 	{
-		//ADC_DataArray2[ADC_SampleCount*2+1] = (uint8_t)(Chip_GPIO_ReadPort(LPC_GPIO, 2) & 0xFF);
 		ADC_DataArray[ADC_SampleCount] |= (int16_t)((Chip_GPIO_ReadPort(LPC_GPIO, 2)) & 0xFF);
-		//ADC_DataArray[ADC_SampleCount] |= (int16_t)((Chip_GPIO_ReadPort(LPC_GPIO, 2) & 0xFF) << 8);
 
 		ADC_Dataclock_Count = 0;
 
@@ -228,8 +211,6 @@ void TIMER2_IRQHandler(void)
 		{
 			//Turn of the timer here
 			Chip_TIMER_StopOnMatchEnable(LPC_TIMER2, 0);	//Timer will stop on next interrupt
-			//Chip_TIMER_Disable(LPC_TIMER2);
-			//Chip_TIMER_ExtMatchControlSet(LPC_TIMER2, 1, TIMER_EXTMATCH_TOGGLE, 0);
 			ADC_SampleCount = 0;
 			ADC_Status = AD7606_STATUS_DATAREADY;
 		}
@@ -251,13 +232,12 @@ uint8_t AD7606GetStatus(void)
 	return ADC_Status;
 }
 
-void AD7606GetDataSet(uint8_t sel, uint16_t *DataSet)
+void AD7606GetDataSet(uint8_t sel, uint16_t* DataSet)
 {
 	uint8_t i;
 
-	//printf("start: %u\r\n", Chip_GPIO_ReadDirBit(LPC_GPIO, AD7606_ADSTART_PORT, AD7606_ADSTART_PIN));
-	//printf("busy: %u\r\n", Chip_GPIO_ReadDirBit(LPC_GPIO, AD7606_ADBUSY_PORT, AD7606_ADBUSY_PIN));
-	//printf("fdata: %u\r\n", Chip_GPIO_ReadDirBit(LPC_GPIO, AD7606_ADFDATA_PORT, AD7606_ADFDATA_PIN));
+	//TODO
+	//Implement chip select!!!
 
 	//Start conversion
 	AD7606_Start(true);

@@ -21,6 +21,7 @@
 #include "TCA9554A.h"
 #include "AD7606.h"
 #include "MAX31855.h"
+#include "MX106T.h"
 
 #include "ControlLoop.h"
 #include "at45db321d.h" //flash memory driver
@@ -29,14 +30,19 @@
 void vEStopTask(void * pvParameters );
 void vFireControlTask(void * pvParameters );
 void vDataAquisitionTask(void * pvParameters );
+void vServoReadTask(void * pvParameters );
 void vDataSendTask(void * pvParameters );
-//void vRunCommandTask(void * pvParameters );
-//void vUARTTask(void * pvParameters );
+void vRunCommandTask(void * pvParameters );
+void vUARTTask(void * pvParameters );
+
 
 xTaskHandle vEStopTaskHandle;
 xTaskHandle vFireControlTaskHandle;
 xTaskHandle vDataAquisitionTaskHandle;
+xTaskHandle vServoReadTaskHandle;
 xTaskHandle vDataSendTaskHandle;
+xTaskHandle vUARTTaskHandle;
+xTaskHandle vRunCommandTaskHandle;
 
 
 #endif /* MAIN_H_ */
