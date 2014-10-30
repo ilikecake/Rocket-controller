@@ -48,6 +48,7 @@
  *   Sets up various pin mux functions for the board (Ethernet, LEDs, etc.)<BR>
  *  Memory:<BR>
  *   There is no memory setup for this board.
+ *   blarg
  * @{
  */
 
@@ -76,22 +77,11 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 	{0,  15,  IOCON_MODE_INACT,                   IOCON_FUNC0},	/* GPIO (DAC Select) */
 	{0,  16,  IOCON_MODE_INACT,                   IOCON_FUNC0},	/* GPIO (DAC Update) */
 
-	/* ENET */
-	{0x1, 0,  IOCON_MODE_INACT,                   IOCON_FUNC1},	/* ENET_TXD0 */
-	{0x1, 1,  IOCON_MODE_INACT,                   IOCON_FUNC1},	/* ENET_TXD1 */
-	{0x1, 4,  IOCON_MODE_INACT,                   IOCON_FUNC1},	/* ENET_TX_EN */
-	{0x1, 8,  IOCON_MODE_INACT,                   IOCON_FUNC1},	/* ENET_CRS */
-	{0x1, 9,  IOCON_MODE_INACT,                   IOCON_FUNC1},	/* ENET_RXD0 */
-	{0x1, 10, IOCON_MODE_INACT,                   IOCON_FUNC1},	/* ENET_RXD1 */
-	{0x1, 14, IOCON_MODE_INACT,                   IOCON_FUNC1},	/* ENET_RX_ER */
-	{0x1, 15, IOCON_MODE_INACT,                   IOCON_FUNC1},	/* ENET_REF_CLK */
-	{0x1, 16, IOCON_MODE_INACT,                   IOCON_FUNC1},	/* ENET_MDC */
-	{0x1, 17, IOCON_MODE_INACT,                   IOCON_FUNC1},	/* ENET_MDIO */
+	{0x1, 9,  IOCON_MODE_INACT,                   IOCON_FUNC0},	/* LED1 */
+	{0x1, 10, IOCON_MODE_INACT,                   IOCON_FUNC0},	/* LED2 */
+	{0x1, 14, IOCON_MODE_INACT,                   IOCON_FUNC0},	/* LED3 */
 
 	{0x2, 8,  IOCON_MODE_INACT,                   IOCON_FUNC0},	/* GPIO (DAC Clear) */
-	{0x2, 11, IOCON_MODE_INACT,                   IOCON_FUNC0},	/* GPIO (LED 1) */
-	{0x2, 12, IOCON_MODE_INACT,                   IOCON_FUNC0},	/* GPIO (LED 2) */
-	{0x2, 13, IOCON_MODE_INACT,                   IOCON_FUNC0},	/* GPIO (LED 3) */
 };
 
 /*****************************************************************************
@@ -122,8 +112,11 @@ STATIC void SystemSetupClocking(void)
 	   FCCO is selected for PLL Output and it must be between 275 MHz to 550 MHz.
 	   FCCO = (2 * M * FIN) / N = integer multiplier of CPU Clock (120MHz) = 480MHz
 	   N = 1, M = 480 * 1/(2*12) = 20 */
+
 	/* This is changed for our board, the main clock is 10MHz, so M is changed to 24 to get the proper FCCO */
-	Chip_Clock_SetupPLL(SYSCTL_MAIN_PLL, 23, 0);/* Multiply by 20, Divide by 1 */
+	//Chip_Clock_SetupPLL(SYSCTL_MAIN_PLL, 23, 0);/* Multiply by 24, Divide by 1*/
+	/* This is changed back to a 12MHz oscillator, so M is changed to 24 to get the proper FCCO */
+	Chip_Clock_SetupPLL(SYSCTL_MAIN_PLL, 19, 0);/* Multiply by 20, Divide by 1 */
 
 	/* Enable PLL0 */
 	Chip_Clock_EnablePLL(SYSCTL_MAIN_PLL, SYSCTL_PLL_ENABLE);

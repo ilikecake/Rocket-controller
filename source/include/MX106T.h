@@ -60,6 +60,7 @@
 #define SERVO_GOAL_TORQUE_16		0X47
 #define SERVO_GOAL_ACCELERATION_8	0X49
 
+#define SERVO_DEADBAND	8	//milliseconds it takes to finish processing servo requests
 #define SERVO_UART LPC_UART0
 
 void MX106T_Send(uint8_t *parameters, uint8_t outLength, uint8_t *inputBuffer, uint8_t inLength);

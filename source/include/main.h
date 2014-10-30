@@ -26,12 +26,17 @@
 #include "ControlLoop.h"
 #include "at45db321d.h" //flash memory driver
 
+#include "XRA1402.h"
+
 
 void vEStopTask(void * pvParameters );
 void vFireControlTask(void * pvParameters );
 void vDataAquisitionTask(void * pvParameters );
 void vServoReadTask(void * pvParameters );
+//void vServoWriteTask(void * pvParameters );
+void vDataReadTask(void * pvParameters );
 void vDataSendTask(void * pvParameters );
+
 void vRunCommandTask(void * pvParameters );
 void vUARTTask(void * pvParameters );
 
@@ -40,6 +45,8 @@ xTaskHandle vEStopTaskHandle;
 xTaskHandle vFireControlTaskHandle;
 xTaskHandle vDataAquisitionTaskHandle;
 xTaskHandle vServoReadTaskHandle;
+//xTaskHandle vServoWriteTaskHandle;
+xTaskHandle vDataReadTaskHandle;
 xTaskHandle vDataSendTaskHandle;
 xTaskHandle vUARTTaskHandle;
 xTaskHandle vRunCommandTaskHandle;

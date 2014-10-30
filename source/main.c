@@ -102,28 +102,36 @@ static void prvSetupHardware(void)
 {
 	Board_Init();
 
-	Chip_GPIO_WriteDirBit(LPC_GPIO, 0, 17, true);
-	Chip_GPIO_WritePortBit(LPC_GPIO, 0, 17, false);
+	Board_LED_Set(0, false);
+	Board_LED_Set(1, true);
+	Board_LED_Set(2, false);
+
+
+
+	//Chip_GPIO_WriteDirBit(LPC_GPIO, 0, 17, true);
+	//Chip_GPIO_WritePortBit(LPC_GPIO, 0, 17, false);
 
 	/* SSP initialization */
 	Board_SSP_Init(LPC_SSP1);
 	Chip_SSP_Init(LPC_SSP1);
 	Chip_SSP_Enable(LPC_SSP1);
 
+
+
+	i2c_app_init(I2C1, SPEED_100KHZ);//SPEED_400KHZ
+
 	//Initalize I2C
-	i2c_app_init(I2C0, SPEED_100KHZ);//SPEED_400KHZ
+	//i2c_app_init(I2C0, SPEED_100KHZ);//SPEED_400KHZ
 
 	/* Set default mode to interrupt */
-	i2c_set_mode(I2C0, 0);
+	//i2c_set_mode(I2C0, 0);
 
-	AD5666Init();//set up Analog Output chip
+	//AD5666Init();//set up Analog Output chip
 	AD7606Init();//set up Analog Input chip
-	MAX31855Init();//set up thermocouple chip
+	//MAX31855Init();//set up thermocouple chip
 
 	/* Initial LED0 state is off */
-	//Board_LED_Set(0, false);
-	//Board_LED_Set(1, true);
-	//Board_LED_Set(2, false);
+
 	//Board_LED_Set(3, true);
 }
 
@@ -134,10 +142,8 @@ void vEStopTask(void * pvParameters ) {
 	//portTickType interval;
 	//interval=configTICK_RATE_HZ/100;//Set frequency to 100 loops per second
 
-
-	activeEstop = 1;
-
-	vTaskSuspend( NULL );//suspend current task until triggered by emergency stop event
+	vTaskSuspend( NULL ); //suspend current task until triggered by emergency stop event
+	emergencyStop = 1;
 
 	//kill control task
 	vTaskDelete(vFireControlTaskHandle);
@@ -148,7 +154,15 @@ void vEStopTask(void * pvParameters ) {
 	{
 		Board_DO_Set(i, 0);//set all outputs to 0
 	}
+
 	//set servos to closed
+	if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
+	{
+		MX106T_Set16bit(1,SERVO_PRESENT_POSITION_16,Servo_Command[commandNum][0]);//N2O Valve
+		MX106T_Set16bit(2,SERVO_PRESENT_POSITION_16,Servo_Command[commandNum][1]);//Fuel Valve
+		xSemaphoreGive(servoSemaphore);//give back servo semaphore
+		servoCommandFlag = 0;
+	}
 
 
 	//wait for a few seconds.  Continue recording data for 5 seconds during shutdown.
@@ -156,7 +170,6 @@ void vEStopTask(void * pvParameters ) {
 
 
 	activeSaveData = 0;//stop recording data
-	activeEstop = 0;
 
 	//kill E-Stop task
 	vTaskDelete(vEStopTaskHandle);
@@ -170,44 +183,105 @@ void vFireControlTask(void * pvParameters ) {
 	portTickType tickTime;
 	portTickType interval;
 	uint8_t g = 0;
-	interval=configTICK_RATE_HZ/100;//Set frequency to 100 loops per second
-
+	uint8_t channel;
+	//interval=configTICK_RATE_HZ/5;//Set frequency to 100 loops per secon
 
 	//Ensure that a valid control sequence has been uploaded
 
-	printf("Fire.  Fire, fire/r/n");
-
-
-
-	printf("command Start\r\n");
-	tickTime = xTaskGetTickCount();
-	for(g=0;g<1000;g++)
-	{
-		UpdateCommand(tickTime);
-	}
-	interval= xTaskGetTickCount();
-	printf("\r\nElapsed Time =%dms\r\n",interval-tickTime);
-	printf("This is the end for you.");
-
-	vTaskSuspend( NULL );//suspend current task
+	//Board_LED_Set(0,1);
+	//Board_LED_Set(1,0);
+	//Board_LED_Set(2,1);
 
 	runningControl = 1;//show that control sequence is running
-	activeEstop = 0;//the emergency stop has not been triggered
-	activeSaveData = 1;//set save data flag to 1 (make sure data will be saved)
+	redlinesEnabled = 1;
+	emergencyStop = 0;//the emergency stop has not been triggered
 
+	commandNum = 0;//reset sequence to start at command 0
+	servoCommandFlag = 0;  //allow servo to be queried for position
+
+	fireStartTime = xTaskGetTickCount(); //store the time at which the control sequence was started
+
+	runningData = 1;
 	vTaskResume(vDataAquisitionTaskHandle);//make sure data is being acquired
-	vTaskResume(vServoReadTask);//make sure data is being acquired
-	//vTaskResume(vDataSendTask);//make sure data is being acquired
 
-	while (1) {
+	while ((commandNum < MAX_COMMANDS) && (commandTime[commandNum]>0)) {
+
 		tickTime = xTaskGetTickCount();
 
-		UpdateCommand(tickTime);
+		if (fireStartTime+commandTime[commandNum] > tickTime)//wait for commandTime if we haven't passed it yet
+		{
+			if (fireStartTime+commandTime[commandNum] - SERVO_DEADBAND > tickTime) //if we have time, wake up in time to stop the ReadServo
+			{
+				//wait until SERVO_DEADBAND milliseconds before next command time
+				interval=(fireStartTime+commandTime[commandNum]) - SERVO_DEADBAND - tickTime;
+				vTaskDelayUntil(&tickTime,interval);
+
+				servoCommandFlag = 1;//prevent ReadServo from starting a read that will conflict with the servo command timing
+				tickTime = xTaskGetTickCount();
+			}
+
+			//wait for next command time
+			interval=(fireStartTime+commandTime[commandNum]) - tickTime;
+			vTaskDelayUntil(&tickTime,interval);
+		}
+
+
+		for (channel=0;channel<TOTAL_DO_CHANNELS;channel++)
+		{
+			//DO0 is LSB, DO16 is MSB
+			Board_DO_Set(channel, (DO_Command[commandNum]&(1<<channel))>>channel );
+		}
+
+
+		//send position commands to servos
+		//vTaskResume(vServoWriteTaskHandle);
+		if( xSemaphoreTake( servoSemaphore, ( portTickType ) 50 ) == pdTRUE )	//take data buffer semaphore
+		{
+			//MX106T_Set16bit(1,SERVO_PRESENT_POSITION_16,Servo_Command[commandNum][0]);//N2O Valve
+			//MX106T_Set16bit(2,SERVO_PRESENT_POSITION_16,Servo_Command[commandNum][1]);//Fuel Valve
+			xSemaphoreGive(servoSemaphore);//give back servo semaphore
+			servoCommandFlag = 0;
+		}
+		else
+		{	//if a servo command failed, trigger an emergency stop
+			vTaskResume(vEStopTaskHandle);
+		}
+
+		commandNum++;
+
+
+
+/*
+
+		tickTime = xTaskGetTickCount();
+		//UpdateCommand(tickTime);
+
+		if (g==0)
+		{
+			g=1;
+		}
+		else
+		{
+			g=0;
+		}
+
+		for (channel=0;channel<TOTAL_DO_CHANNELS;channel++)
+		{
+			//DO0 is LSB, DO16 is MSB
+			Board_DO_Set(channel, g);
+		}
 
 		vTaskDelayUntil(&tickTime,interval);
+		*/
+
 	}
 
-	activeSaveData = 0;//stop saving data
+	runningControl = 0;
+	redlinesEnabled = 0;
+
+	//Board_LED_Set(0,1);
+	//Board_LED_Set(1,0);
+	//Board_LED_Set(2,1);
 
 	//kill E-Stop task
 	vTaskDelete(vEStopTaskHandle);
@@ -222,109 +296,87 @@ void vDataAquisitionTask(void * pvParameters ) {
 //static portTASK_FUNCTION(vDataAquisitionTask, pvParameters) {
 	portTickType tickTime;
 	portTickType interval;
-	uint8_t g = 0;
-
-	//interval=configTICK_RATE_HZ/100;//Set frequency to 100 loops per second
-	interval=configTICK_RATE_HZ/50;//Set frequency to 1 loops per second
-
-
+	//uint8_t g = 0;
+	//uint8_t LEDblink = 0;
+	interval=configTICK_RATE_HZ/100;//Set frequency to 100 loops per second (must be less than 125Hz)
 	vTaskSuspend( NULL );//suspend current task
 
 	while (1)
 	{
 		tickTime = xTaskGetTickCount();
+		vTaskResume(vDataReadTaskHandle);
+		vTaskResume(vServoReadTaskHandle);
+		vTaskResume(vDataSendTaskHandle);
 
-		if (g==0)
-		{g=1;}
-		else
-		{g=0;}
-		Board_LED_Set(1, g);
-
-		ReadData();//takes 34.5ms
-
-		//send data to remote computer via wireless RS232
-		SendData();//takes 6.88ms
+		//ReadData();//takes 34.5ms
+		//SendData();//send data to remote computer via wireless RS232
 
 		//if (activeSaveData == 1)
 		//{
 		//	//save data to flash or SD card
 		//}
 
-		vTaskDelayUntil(&tickTime,interval);
-	}
-}
 
-/* This task reads data from the servo motors */
-void vServoReadTask(void * pvParameters ) {
-//static portTASK_FUNCTION(vDataAquisitionTask, pvParameters) {
-	portTickType tickTime;
-	portTickType interval;
-	uint8_t i;
-	interval=configTICK_RATE_HZ/50;//Set frequency to 50 loops per second
-
-	vTaskSuspend( NULL );//suspend current task
-
-	while (1)
-	{
-		tickTime = xTaskGetTickCount();
-
-		for (i=0;i<TOTAL_SERVO_CHANNELS;i++)
-		{
-			//ServoPosition[i] = MX106T_Read16bit(i,SERVO_PRESENT_POSITION_16);
-			ServoPosition[i] = 13;
-		}
-
-
-		//ReadData();
-
-		//if (activeSaveData == 1)
-		//{
-		//	//save data to flash or SD card
-		//}
 
 		vTaskDelayUntil(&tickTime,interval);
 	}
 }
 
 /* This task sends data to remote computer */
-void vDataSendTask(void * pvParameters ) {
-//static portTASK_FUNCTION(vDataSendTask, pvParameters) {
-	portTickType tickTime;
-	portTickType interval;
-	interval=configTICK_RATE_HZ/100;//Set frequency to 100 loops per second
-
+void vDataReadTask(void * pvParameters ) {
 	vTaskSuspend( NULL );//suspend current task
-
 	while (1)
 	{
-		tickTime = xTaskGetTickCount();
-
 		//send data to remote computer via wireless RS232
-		SendData();//takes care of semaphore internally
-
-		vTaskDelayUntil(&tickTime,interval);
+		ReadData();//takes care of semaphore internally
+		vTaskSuspend( NULL );//suspend current task
 	}
 }
 
+/* This task sends data to remote computer */
+void vDataSendTask(void * pvParameters ) {
+	vTaskSuspend( NULL );//suspend current task
+	while (1)
+	{
+		//send data to remote computer via wireless RS232
+		SendData();//takes care of semaphore internally
+		vTaskSuspend( NULL );//suspend current task
+	}
+}
 
+/* This task reads data from the servo motors */
+void vServoReadTask(void * pvParameters ) {
+	vTaskSuspend( NULL );//suspend current task
+	while (1)
+	{
+		ReadServo();
+		vTaskSuspend( NULL );//suspend current task
+	}
+}
+
+/* This task writes commands to servo motors */
+/*void vServoWriteTask(void * pvParameters ) {
+	vTaskSuspend( NULL );//suspend current task
+	while (1)
+	{
+		ReadServo();
+		vTaskSuspend( NULL );//suspend current task
+	}
+}
+*/
 
 
 /* This task looks for waiting commands from UART and runs them */
 void vRunCommandTask(void * pvParameters ) {
-//static portTASK_FUNCTION(vRunCommandTask, pvParameters) {
-
 	while (1)
 	{
-
 		RunCommand();
 		vTaskDelay(configTICK_RATE_HZ/5);
-
 	}
 }
 
 /* UART (or output) thread */
 void vUARTTask(void * pvParameters ) {
-//static portTASK_FUNCTION(vUARTTask, pvParameters) {
 	int tickCnt = 0;
 
 	while (1)
@@ -332,18 +384,14 @@ void vUARTTask(void * pvParameters ) {
 		tickCnt = Board_UARTGetChar();
 		if(tickCnt != EOF)
 		{
+			//Board_UARTPutChar((char)tickCnt);
+			//Board_UARTPutChar((char)33);
+			//printf("b");
 			CommandGetInputChar((char)(tickCnt));
 			//Board_UARTPutChar((char)(tickCnt));
 		}
 	}
 
-	//while (1) {
-	//	DEBUGOUT("Tick: %d\r\n", tickCnt);
-	//	tickCnt++;
-
-		/* About a 1s delay here */
-	//	vTaskDelay(configTICK_RATE_HZ);
-	//}
 }
 
 /*****************************************************************************
@@ -363,10 +411,13 @@ int main(void)
 	vSemaphoreCreateBinary(dataSemaphore);
 	vSemaphoreCreateBinary(servoSemaphore);
 
+	Board_LED_Set(0, false);
+	Board_LED_Set(1, false);
+	Board_LED_Set(2, true);
 
 	/* UART output thread, simply counts seconds */
 	xTaskCreate(vUARTTask, (signed char *) "vTaskUart",
-				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 1UL),
+				128, NULL, (tskIDLE_PRIORITY + 1UL),
 				&vUARTTaskHandle);
 
 	/* UART output thread, simply counts seconds */
@@ -380,49 +431,25 @@ int main(void)
 				&vDataSendTaskHandle);
 
 	// Read Stats from servo motors
-	xTaskCreate(vServoReadTask, (signed char *) "vDataSendTask",
-				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 4UL),
-				&vServoReadTaskHandle);
+	xTaskCreate(vServoReadTask, (signed char *) "vDataSendTask", configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 4UL), &vServoReadTaskHandle);
+
+	// Read all analog & TC data:  is immediately suspended
+	xTaskCreate(vDataReadTask, (signed char *) "vDataSendTask",
+				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 5UL),
+				&vDataReadTaskHandle);
 
 	// Read analog data (save it to SD card):  is immediately suspended
 	//vDataAquisitionTaskHandle=NULL;
 	xTaskCreate(vDataAquisitionTask, (signed char *) "vDAQTask",
-				configMINIMAL_STACK_SIZE+128, NULL, (tskIDLE_PRIORITY + 5UL),
+				configMINIMAL_STACK_SIZE+128, NULL, (tskIDLE_PRIORITY + 6UL),
 				&vDataAquisitionTaskHandle);
-
-
-
-
-
-/*
-	// Emergency Stop
-	xTaskCreate(vEStopTask, (signed char *) "vEStopTask",
-				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 7UL),
-				(xTaskHandle *) NULL);
-
-	// Control Digital Outputs and Servos during run time
-	xTaskCreate(vFireControlTask, (signed char *) "vFireControlTask",
-				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 6UL),
-				(xTaskHandle *) NULL);
-	*/
-
 
 
 	/* Start the scheduler */
 	vTaskStartScheduler();
 
+	while (1) {}
 
-
-	/*vPortEnterCritical();
-
-	Chip_IOCON_PinMux(LPC_IOCON, 4, 28, IOCON_MODE_INACT, IOCON_FUNC0);
-	Chip_GPIO_WriteDirBit(LPC_GPIO, 4, 28, true);
-
-	while(1)
-	{
-		Chip_GPIO_WritePortBit(LPC_GPIO, 0, 17, true);
-		Chip_GPIO_WritePortBit(LPC_GPIO, 0, 17, false);
-	}*/
 
 	/* Should never arrive here */
 	return 1;

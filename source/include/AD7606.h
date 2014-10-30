@@ -10,16 +10,52 @@
 #define AD7606_H_
 
 //GPIO defines
-// P1.14:	ADSTART
-// P0.5:	ADBUSY
-// P0.6:	ADFDATA
-#define AD7606_ADSTART_PORT		1
-#define AD7606_ADSTART_PIN		14
-#define AD7606_ADBUSY_PORT		0
-#define AD7606_ADBUSY_PIN		5
-#define AD7606_ADFDATA_PORT		0
-#define AD7606_ADFDATA_PIN		6
+//A/D 1:
+// P1.0:	ADSTART-1
+// P1.1:	CS-ADC1
+// P1.4:	ADBUSY-1
+// P1.8:	ADFDATA-1
+#define AD7606_1_ADSTART_PORT		1
+#define AD7606_1_ADSTART_PIN		0
+#define AD7606_1_CS_PORT			1
+#define AD7606_1_CS_PIN				1
+#define AD7606_1_ADBUSY_PORT		1
+#define AD7606_1_ADBUSY_PIN			4
+#define AD7606_1_ADFDATA_PORT		1
+#define AD7606_1_ADFDATA_PIN		8
+#define AD7606_1_IO_EXP_ADDR	0x38
 
+
+//A/D 2:
+// P0.6:	ADSTART-1
+// P2.0:	CS-ADC1
+// P2.1:	ADBUSY-1
+// P2.2:	ADFDATA-1
+#define AD7606_2_ADSTART_PORT		0
+#define AD7606_2_ADSTART_PIN		6
+#define AD7606_2_CS_PORT			2
+#define AD7606_2_CS_PIN				0
+#define AD7606_2_ADBUSY_PORT		2
+#define AD7606_2_ADBUSY_PIN			1
+#define AD7606_2_ADFDATA_PORT		2
+#define AD7606_2_ADFDATA_PIN		2
+#define AD7606_2_IO_EXP_ADDR		0x39
+
+
+//A/D 3:
+// P0.18:	ADSTART-1
+// P0.21:	CS-ADC1
+// P0.22:	ADBUSY-1
+// P2.11:	ADFDATA-1
+#define AD7606_3_ADSTART_PORT		0
+#define AD7606_3_ADSTART_PIN		18
+#define AD7606_3_CS_PORT			0
+#define AD7606_3_CS_PIN				21
+#define AD7606_3_ADBUSY_PORT		0
+#define AD7606_3_ADBUSY_PIN			22
+#define AD7606_3_ADFDATA_PORT		2
+#define AD7606_3_ADFDATA_PIN		2
+#define AD7606_3_IO_EXP_ADDR		0x3B
 
 //Bit definitions for I/O expander bits
 #define AD7606_OS0_BIT		0x00
@@ -29,7 +65,6 @@
 #define AD7606_RANGE_BIT	0x06
 #define AD7606_RESET_BIT	0x07
 
-#define AD7606_IO_EXP_ADDR	0x38
 
 #define AD7606_OS_RATIO_0	0x00	//200kHz
 #define AD7606_OS_RATIO_2	0x01	//100kHz
@@ -57,10 +92,7 @@
 //TODO: Make this bitwise?
 #define AD7606_STATUS_DATAREADY 	0x08		//Indicated that a new dataset is ready. This bit is set when the data is read from the ADC and cleared when the ADC data is read.
 
-STATIC INLINE void AD7606_Start(bool setting)
-{
-	Chip_GPIO_WritePortBit(LPC_GPIO, AD7606_ADSTART_PORT, AD7606_ADSTART_PIN, setting);
-}
+
 
 
 
@@ -71,17 +103,26 @@ STATIC INLINE void AD7606_Start(bool setting)
 
 void AD7606Init(void);
 
-void AD7606SetOSMode(uint8_t OSModeToSet);
-void AD7606Reset(void);
-void AD7606SetPowerMode(uint8_t PowerModeToSet);
-void AD7606SetRange(uint8_t RangeToSet);
+ void AD7606SetOSMode(uint8_t chipNumber, uint8_t OSModeToSet);
+void AD7606Reset(uint8_t chipNumber);
+void AD7606SetPowerMode(uint8_t chipNumber, uint8_t PowerModeToSet);
+void AD7606SetRange(uint8_t chipNumber, uint8_t RangeToSet);
 
-void AD7606WaitReady(void);
-
-
+void AD7606WaitReady(uint8_t chipNumber);
 
 
-void AD7606StartDataClock(uint32_t ClockRateToSet);
+
+
+//void AD7606StartDataClock(uint32_t ClockRateToSet);
+
+/** Select an AD7606 chip
+ *   ChipNumber: The number of the chip to select (1,2,3)
+ *   Slect:	1=select, 0=deselect
+ *   TODO: implement chips 2 and 3, check for invalid chips
+ */
+void AD7606_Select(uint8_t chipNumber, uint8_t Select);
+
+void AD7606_Start(uint8_t chipNumber, bool Started);
 
 uint8_t AD7606GetStatus(void);
 void AD7606GetDataSet(uint8_t sel, uint16_t* DataSet);

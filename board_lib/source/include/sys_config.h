@@ -47,7 +47,7 @@
 #define DEBUG_UART LPC_UART0
 
 /* Crystal frequency into device */
-#define CRYSTAL_MAIN_FREQ_IN (10000000)
+#define CRYSTAL_MAIN_FREQ_IN (12000000)
 
 /* Crystal frequency into device for RTC/32K input */
 #define CRYSTAL_32K_FREQ_IN (32768)

@@ -59,9 +59,9 @@ const char _F4_HELPTEXT[]  		= "'gettc' has no parameters";
 
 //Set Command Sequence
 static int _F5_Handler (void);
-const char _F5_NAME[]  			= "setseq";
-const char _F5_DESCRIPTION[]  	= "set command sequence";
-const char _F5_HELPTEXT[]  		= "'setseq' <1> <2> <3>";//<DO channel> <time> <state>
+const char _F5_NAME[]  			= "sequence";
+const char _F5_DESCRIPTION[]  	= "set/get command sequence";
+const char _F5_HELPTEXT[]  		= "'sequence' <1> <2> <3>";//<DO channel> <time> <state>
 
 //Set Redlines
 static int _F6_Handler (void);
@@ -127,15 +127,14 @@ const char _F13_HELPTEXT[] PROGMEM 		= "mem <1> <2> <3>";
 //Command list
 const CommandListItem AppCommandList[] =
 {
-	{ _F1_NAME,		1,  2,	_F1_Handler,	_F1_DESCRIPTION,	_F1_HELPTEXT	},		//Set Digital Output Channel
+	{ _F1_NAME,		1,  2,	_F1_Handler,	_F1_DESCRIPTION,	_F1_HELPTEXT	},		//setdo: Set Digital Output Channel
 	{ _F2_NAME,		1,  2,	_F2_Handler,	_F2_DESCRIPTION,	_F2_HELPTEXT	},		//Set servo position
 	{ _F3_NAME, 	0,  0,	_F3_Handler,	_F3_DESCRIPTION,	_F3_HELPTEXT	},		//getai: read Analog data
 	{ _F4_NAME, 	0,  0,	_F4_Handler,	_F4_DESCRIPTION,	_F4_HELPTEXT	},		//getTC: read TC data
-	{ _F5_NAME, 	2,  3+TOTAL_SERVO_CHANNELS,	_F5_Handler,	_F5_DESCRIPTION,	_F5_HELPTEXT	},		//Set Command Sequence
-	{ _F6_NAME, 	0,  3,	_F6_Handler,	_F6_DESCRIPTION,	_F6_HELPTEXT	},		//setred: Set Redlines
+	{ _F5_NAME, 	0,  3+TOTAL_SERVO_CHANNELS,	_F5_Handler,	_F5_DESCRIPTION,	_F5_HELPTEXT	},		//sequence: Set Command Sequence
+	{ _F6_NAME, 	0,  6,	_F6_Handler,	_F6_DESCRIPTION,	_F6_HELPTEXT	},		//setred: Set Redlines
 	{ _F7_NAME, 	0,  0,	_F7_Handler,	_F7_DESCRIPTION,	_F7_HELPTEXT	},		//Read Time
-	{ _F8_NAME, 	0,  0,	_F8_Handler,	_F8_DESCRIPTION,	_F8_HELPTEXT	},		//start test sequence
-
+	{ _F8_NAME, 	1,  1,	_F8_Handler,	_F8_DESCRIPTION,	_F8_HELPTEXT	},		//fire: start test sequence
 	{ _F9_NAME,		1,  1,	_F9_Handler,	_F9_DESCRIPTION,	_F9_HELPTEXT	},		//setupdac: Send commands to DAC chip
 	{ _F10_NAME,	1,  1,	_F10_Handler,	_F10_DESCRIPTION,	_F10_HELPTEXT	},		//setupadc: Send commands to ADC chip
 	{ _F11_NAME,	0,  0,	_F11_Handler,	_F11_DESCRIPTION,	_F11_HELPTEXT	},		//setuptc: Send commands to TC chip
@@ -147,7 +146,7 @@ const CommandListItem AppCommandList[] =
 
 //Command functions
 
-//Digital Output control function
+//setdo:	Digital Output control function
 static int _F1_Handler (void)
 {
 	uint8_t n;
@@ -194,24 +193,25 @@ static int _F3_Handler (void)
 {
 
 	uint8_t channel;
-	uint8_t chipsel;
+	uint8_t chipNumber;
 	uint16_t DataSet[8];
 
+
 	//read analog channel data
-	for(chipsel=0;chipsel<AI_CHIPS;chipsel++)
+	for(chipNumber=0;chipNumber<AI_CHIPS;chipNumber++)
 	{
-		//get analog data from chip "chipsel"
-		AD7606GetDataSet(chipsel, DataSet);
+		//get analog data from chip "chipNumber"
+		AD7606GetDataSet(chipNumber, DataSet);
 
 		for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
 		{
 		 printf("ADC[%u]: %d counts\r\n", channel, DataSet[channel]);
-		 //analogBuffer[channel] = DataSet[channel-chipsel*AI_CHANNELS_PER_CHIP];
+		 //analogBuffer[channel] = DataSet[channel-chipNumber*AI_CHANNELS_PER_CHIP];
 		}
 	}
 
 
-
+	/*
 	portTickType tickTime;
 	portTickType interval;
 	//interval=configTICK_RATE_HZ/100;//Set frequency to 100 loops per second
@@ -223,7 +223,7 @@ static int _F3_Handler (void)
 		ReadData();
 		SendData();
 		vTaskDelayUntil(&tickTime,interval);
-	}
+	}*/
 
 
 	return 0;
@@ -235,8 +235,8 @@ static int _F4_Handler (void)
 	uint8_t sel;
 	uint16_t coldJunction;
 	uint16_t temperature;
-	float temp;
-	float tempCold;
+	//float temp;
+	//float tempCold;
 
 	for(sel=0;sel<4;sel++)
 	{
@@ -252,7 +252,7 @@ static int _F4_Handler (void)
 	return 0;
 }
 
-//Set Command Sequence
+// Set/Get Command Sequence
 static int _F5_Handler (void)
 {
 	//setup the fire sequence
@@ -272,22 +272,61 @@ static int _F5_Handler (void)
 
 			//the lowest 16 bits of argAsInt(3) represent the state of each DO channel
 			//DO0 is LSB, DO16 is MSB
-			for(channel=0;channel<=TOTAL_DO_CHANNELS;channel++)
-			{
-				DO_Command[commandNum][channel] = (argAsInt(3) & (1<<channel)) >>channel;
-				printf("DO%u:%u\r\n",channel,DO_Command[commandNum][channel]);
-			}
+			DO_Command[commandNum]=argAsInt(3);
 
-			for(channel=0;channel<=TOTAL_SERVO_CHANNELS;channel++)
+		/*
+			//the lowest 16 bits of argAsInt(3) represent the state of each DO channel
+			//DO0 is LSB, DO16 is MSB
+			for(channel=0;channel<TOTAL_DO_CHANNELS;channel++)
+			{
+				//DO_Command[commandNum] = DO_Command[commandNum] & (1<<channel);//mask out this channel
+				DO_Command[commandNum] = (argAsInt(3) & (1<<channel)) >>channel;
+				//printf("DO%u:%u\r\n",channel,DO_Command[commandNum][channel]);
+			}
+		 */
+
+			for(channel=0;channel<TOTAL_SERVO_CHANNELS;channel++)
 			{
 				Servo_Command[commandNum][channel] = argAsInt(4+channel);
 			}
+
+
 		}
+
 	}
 	else
 	{
-		printf("Wrong number of arguments.  Sequence must be of form:\r\n");
-		printf("CommandNum, milliseconds, %u DO bits, %u servo\r\n", TOTAL_DO_CHANNELS, TOTAL_SERVO_CHANNELS);
+		//printf("Wrong number of arguments.  Sequence must be of form:\r\n");
+		//printf("CommandNum, milliseconds, %u DO bits, %u servo\r\n", TOTAL_DO_CHANNELS, TOTAL_SERVO_CHANNELS);
+
+		//return the entire command sequence
+
+		printf("Time:");
+		for(commandNum=0;commandNum<MAX_COMMANDS;commandNum++)
+		{
+			printf(" %u", commandTime[commandNum] );
+		}
+		printf("\r\n");
+
+		for(channel=0;channel<TOTAL_DO_CHANNELS;channel++)
+		{
+			printf("DO%u:",channel);
+			for(commandNum=0;commandNum<MAX_COMMANDS;commandNum++)
+			{
+				printf(" %u", (DO_Command[commandNum] >> channel) & 1);
+			}
+			printf("\r\n");
+		}
+
+		for(channel=0;channel<TOTAL_SERVO_CHANNELS;channel++)
+		{
+			printf("DO%u:",channel);
+			for(commandNum=0;commandNum<MAX_COMMANDS;commandNum++)
+			{
+				printf(" %u",Servo_Command[commandNum][channel]);
+			}
+			printf("\r\n");
+		}
 	}
 
 	return 0;
@@ -297,38 +336,26 @@ static int _F5_Handler (void)
 //setup the Redline Triggers
 static int _F6_Handler (void)
 {
-	/*
-	uint8_t channel;
+	uint8_t RLnum;
+	//RLnum, RLstart, RLend, channel, min, max
 
-	if(NumberOfArguments() == 2+TOTAL_DO_CHANNELS+TOTAL_SERVO_CHANNELS)
+	if(NumberOfArguments() == 6)
 	{
-
-		commandNum = argAsInt(1);//when setup is complete CommandNum will be the last command
-		if (commandNum >= MAX_COMMANDS)
-		{
-			printf("Exceeded maximum sequence lines:\r\n");
-		}
-		else
-		{
-			commandTime[commandNum] =  argAsInt(2);//milliseconds
-
-			for(channel=0;channel<=TOTAL_DO_CHANNELS;channel++)
-			{
-				DO_Command[commandNum][channel] = argAsInt(2+channel);
-			}
-
-			for(channel=0; channel<=TOTAL_SERVO_CHANNELS; channel++)
-			{
-				Servo_Command[commandNum][channel] = argAsInt(2+TOTAL_DO_CHANNELS+channel);
-			}
+		RLnum = argAsInt(1);
+		if (RLnum<MAX_REDLINES){
+			redlineTimeStart[RLnum] = argAsInt(2);
+			redlineTimeEnd[RLnum] = argAsInt(3);
+			redlineChannel[RLnum] = argAsInt(4);
+			redlineMin[RLnum] = argAsInt(5);
+			redlineMax[RLnum] = argAsInt(6);
 		}
 	}
 	else
 	{
 		printf("Wrong number of arguments.  Sequence must be of form:\r\n");
-		printf("CommandNum, milliseconds, %u DO, %u servo\r\n", TOTAL_DO_CHANNELS, TOTAL_SERVO_CHANNELS);
+		printf("RLnum, RLstart, RLend, channel, min, max\r\n");
 	}
-*/
+
 
 	return 0;
 }
@@ -345,28 +372,35 @@ static int _F7_Handler (void)
 }
 
 
-//Fire.  Start test sequence
+//fire.  Start test sequence
 static int _F8_Handler (void)
 {
 
-	// Emergency Stop
-	xTaskCreate(vEStopTask, (signed char *) "vEStopTask",
-				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 1UL),
-				&vEStopTaskHandle);
+	//Board_LED_Set(0,1);
+	//Board_LED_Set(1,0);
+	//Board_LED_Set(2,1);
 
-	// Control Digital Outputs and Servos during run time
-	xTaskCreate(vFireControlTask, (signed char *) "vFireControlTask",
-				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 2UL),
-				&vFireControlTaskHandle);
-
-
-	//setup E-Stop interrupt
+	if(argAsInt(1) == 1)
+	{
+		// setup Emergency Stop task
+		xTaskCreate(vEStopTask, (signed char *) "vEStopTask",
+					configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 7UL),
+					&vEStopTaskHandle);
 
 
-	//suspend UART input/output tasks during run time.
-	//vTaskSuspend(vRunCommandTask);
-	//vTaskSuspend(vUARTTask);
+		// Control Digital Outputs and Servos during run time
+		xTaskCreate(vFireControlTask, (signed char *) "vFireControlTask",
+					configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 8UL),
+					&vFireControlTaskHandle);
 
+	}
+	else
+	{
+		//trigger emergency stop
+		emergencyStop = 1;
+		vTaskResume(vEStopTaskHandle);//make sure data is being acquired
+
+	}
 
 	return 0;
 }
@@ -457,8 +491,18 @@ static int _F10_Handler (void)
 			break;
 
 		case 7:
-			printf("start timer at %u kHz\r\n", argAsInt(2));
-			AD7606StartDataClock(argAsInt(2)*1000);
+			if(argAsInt(2) == 1)
+			{
+				printf("Select ADC1\r\n");
+				AD7606_Select(1, 1);
+			}
+			else
+			{
+				printf("Deselect ADC1\r\n");
+				AD7606_Select(1, 0);
+			}
+			//printf("start timer at %u kHz\r\n", argAsInt(2));
+			//AD7606StartDataClock(argAsInt(2)*1000);
 			//while(AD7606GetStatus() != AD7606_STATUS_DATAREADY) {}
 			//AD7606GetDataSet();
 			break;
@@ -492,9 +536,9 @@ static int _F10_Handler (void)
 */
 			break;
 
-		case 9:
-			AD7606_Start(argAsInt(2));
-			break;
+		//case 9:
+		//	AD7606_Start(chipsel, argAsInt(2));
+		//	break;
 		}
 	}
 	return 0;
@@ -518,7 +562,7 @@ static int _F12_Handler (void)
 
 	for (i = 0; i <= 0x7F; i++)
 	{
-		if(Chip_I2C_MasterSend(I2C0, i, &DummyByte, 1) > 0)
+		if(Chip_I2C_MasterSend(I2C1, i, &DummyByte, 1) > 0)
 		{
 			printf("Device responded at 0x%02X\r\n", i);
 		}
@@ -537,6 +581,7 @@ static int _F13_Handler (void)
 
 	if (argAsInt(1)==1)
 	{
+		runningData = 1;
 		vTaskResume(vDataAquisitionTaskHandle);//make sure data is being acquired
 		//vTaskResume(vServoReadTask);//make sure data is being acquired
 		//vTaskResume(vDataSendTask);//make sure data is being acquired
@@ -544,6 +589,7 @@ static int _F13_Handler (void)
 	else if (argAsInt(1)==0)
 	{
 		vTaskSuspend(vDataAquisitionTaskHandle);//make sure data is being acquired
+		runningData = 0;
 		//vTaskSuspend(vServoReadTask);//make sure data is being acquired
 		//vTaskSuspend(vDataSendTask);//make sure data is being acquired
 	}

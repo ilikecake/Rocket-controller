@@ -33,7 +33,7 @@ void MAX31855Init(void)
 {
 	
 	//Set up pins
-	Chip_IOCON_PinMux(LPC_IOCON, MAX31855_CS_PORT, MAX31855_CS1_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
+	/*Chip_IOCON_PinMux(LPC_IOCON, MAX31855_CS_PORT, MAX31855_CS1_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
 	Chip_IOCON_PinMux(LPC_IOCON, MAX31855_CS_PORT, MAX31855_CS2_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
 	Chip_IOCON_PinMux(LPC_IOCON, MAX31855_CS_PORT, MAX31855_CS3_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
 	Chip_IOCON_PinMux(LPC_IOCON, MAX31855_CS_PORT, MAX31855_CS4_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
@@ -48,7 +48,7 @@ void MAX31855Init(void)
 	Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS1_PIN, true);				//chip is deselected
 	Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS2_PIN, true);				//chip is deselected
 	Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS3_PIN, true);				//chip is deselected
-	Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS4_PIN, true);				//chip is deselected
+	Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS4_PIN, true);				//chip is deselected*/
 
 	return;
 }
@@ -58,7 +58,7 @@ void MAX31855Init(void)
 void MAX31855Select( uint8_t sel )
 {
 
-	Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS1_PIN, true);				//chip is deselected
+	/*Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS1_PIN, true);				//chip is deselected
 	Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS2_PIN, true);				//chip is deselected
 	Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS3_PIN, true);				//chip is deselected
 	Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS4_PIN, true);				//chip is deselected
@@ -90,7 +90,7 @@ void MAX31855Select( uint8_t sel )
 	case 7:
 		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS4_PIN, false);	//chip is selected
 		break;
-		}
+		}*/
 
 	return;
 }

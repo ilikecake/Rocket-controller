@@ -81,11 +81,6 @@
 	</natures>
 	<linkedResources>
 		<link>
-			<name>BOARD</name>
-			<type>2</type>
-			<locationURI>virtual:/virtual</locationURI>
-		</link>
-		<link>
 			<name>CHIP</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
@@ -94,16 +89,6 @@
 			<name>IP</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
-		</link>
-		<link>
-			<name>BOARD/board.c</name>
-			<type>1</type>
-			<locationURI>PROJECT_LOC/source/board.c</locationURI>
-		</link>
-		<link>
-			<name>BOARD/sysinit.c</name>
-			<type>1</type>
-			<locationURI>PROJECT_LOC/source/sysinit.c</locationURI>
 		</link>
 		<link>
 			<name>CHIP/adc_17xx_40xx.c</name>

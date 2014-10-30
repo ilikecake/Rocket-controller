@@ -20,73 +20,71 @@ void AD7606Init(void)
 	ADC_Dataclock_Count = 0;
 	ADC_SampleCount = 0;
 
-	//Setup pins
-	// P1.14:	ADSTART (output, low)
-	// P0.5:	ADBUSY
-	// P0.6:	ADFDATA
-	Chip_IOCON_PinMux(LPC_IOCON, AD7606_ADSTART_PORT, AD7606_ADSTART_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
-	Chip_IOCON_PinMux(LPC_IOCON, AD7606_ADBUSY_PORT, AD7606_ADBUSY_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
-	Chip_IOCON_PinMux(LPC_IOCON, AD7606_ADFDATA_PORT, AD7606_ADFDATA_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
+	//Setup pins for chip 1
+	Chip_IOCON_PinMux(LPC_IOCON, AD7606_1_ADSTART_PORT,	AD7606_1_ADSTART_PIN,	IOCON_MODE_INACT, IOCON_FUNC0);
+	Chip_IOCON_PinMux(LPC_IOCON, AD7606_1_CS_PORT,		AD7606_1_CS_PIN,		IOCON_MODE_INACT, IOCON_FUNC0);
+	Chip_IOCON_PinMux(LPC_IOCON, AD7606_1_ADBUSY_PORT,	AD7606_1_ADBUSY_PIN,	IOCON_MODE_INACT, IOCON_FUNC0);
+	Chip_IOCON_PinMux(LPC_IOCON, AD7606_1_ADFDATA_PORT,	AD7606_1_ADFDATA_PIN,	IOCON_MODE_INACT, IOCON_FUNC0);
 
-	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_ADSTART_PORT, AD7606_ADSTART_PIN, true);
-	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_ADBUSY_PORT, AD7606_ADBUSY_PIN, false);
-	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_ADFDATA_PORT, AD7606_ADFDATA_PIN, false);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_1_ADSTART_PORT,	AD7606_1_ADSTART_PIN,	true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_1_CS_PORT,		AD7606_1_CS_PIN,		true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_1_ADBUSY_PORT,	AD7606_1_ADBUSY_PIN,	false);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_1_ADFDATA_PORT,	AD7606_1_ADFDATA_PIN,	false);
+
+	//Setup pins for chip 2
+	Chip_IOCON_PinMux(LPC_IOCON, AD7606_2_ADSTART_PORT,	AD7606_2_ADSTART_PIN,	IOCON_MODE_INACT, IOCON_FUNC0);
+	Chip_IOCON_PinMux(LPC_IOCON, AD7606_2_CS_PORT,		AD7606_2_CS_PIN,		IOCON_MODE_INACT, IOCON_FUNC0);
+	Chip_IOCON_PinMux(LPC_IOCON, AD7606_2_ADBUSY_PORT,	AD7606_2_ADBUSY_PIN,	IOCON_MODE_INACT, IOCON_FUNC0);
+	Chip_IOCON_PinMux(LPC_IOCON, AD7606_2_ADFDATA_PORT,	AD7606_2_ADFDATA_PIN,	IOCON_MODE_INACT, IOCON_FUNC0);
+
+	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_2_ADSTART_PORT,	AD7606_2_ADSTART_PIN,	true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_2_CS_PORT,		AD7606_2_CS_PIN,		true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_2_ADBUSY_PORT,	AD7606_2_ADBUSY_PIN,	false);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_2_ADFDATA_PORT,	AD7606_2_ADFDATA_PIN,	false);
+
+	//Setup pins for chip 3
+	Chip_IOCON_PinMux(LPC_IOCON, AD7606_3_ADSTART_PORT,	AD7606_3_ADSTART_PIN,	IOCON_MODE_INACT, IOCON_FUNC0);
+	Chip_IOCON_PinMux(LPC_IOCON, AD7606_3_CS_PORT,		AD7606_3_CS_PIN,		IOCON_MODE_INACT, IOCON_FUNC0);
+	Chip_IOCON_PinMux(LPC_IOCON, AD7606_3_ADBUSY_PORT,	AD7606_3_ADBUSY_PIN,	IOCON_MODE_INACT, IOCON_FUNC0);
+	Chip_IOCON_PinMux(LPC_IOCON, AD7606_3_ADFDATA_PORT,	AD7606_3_ADFDATA_PIN,	IOCON_MODE_INACT, IOCON_FUNC0);
+
+	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_3_ADSTART_PORT,	AD7606_3_ADSTART_PIN,	true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_3_CS_PORT,		AD7606_3_CS_PIN,		true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_3_ADBUSY_PORT,	AD7606_3_ADBUSY_PIN,	false);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_3_ADFDATA_PORT,	AD7606_3_ADFDATA_PIN,	false);
+
 
 	//Conversion control pin idles low
-	AD7606_Start(false);
+	AD7606_Start(0,false);
+	AD7606_Start(1,false);
+	AD7606_Start(2,false);
 
-	TCA9554A_SetConfig(AD7606_IO_EXP_ADDR, 0x18);//~((1<<AD7606_OS0_BIT) | (1<<AD7606_OS1_BIT) | (1<<AD7606_OS2_BIT) | (1<<AD7606_STANDBY_BIT) | (1<<AD7606_RANGE_BIT) | (1<<AD7606_RESET_BIT)) );
+	//Set up options for A/D1 in the I/O expander
+	TCA9554A_SetConfig(AD7606_1_IO_EXP_ADDR, 0x18);//~((1<<AD7606_OS0_BIT) | (1<<AD7606_OS1_BIT) | (1<<AD7606_OS2_BIT) | (1<<AD7606_STANDBY_BIT) | (1<<AD7606_RANGE_BIT) | (1<<AD7606_RESET_BIT)) );
+	TCA9554A_SetConfig(AD7606_2_IO_EXP_ADDR, 0x18);
+	TCA9554A_SetConfig(AD7606_3_IO_EXP_ADDR, 0x18);
 
-	AD7606SetOSMode(AD7606_OS_RATIO_4);//set how many samples will be filtered to get one output
-	AD7606SetPowerMode(AD7606_POWER_MODE_ON);
-	AD7606SetRange(AD7606_RANGE_5V);
+	AD7606SetOSMode(0,AD7606_OS_RATIO_4);//set how many samples will be filtered to get one output
+	AD7606SetPowerMode(0,AD7606_POWER_MODE_ON);
+	AD7606SetRange(0,AD7606_RANGE_5V);
+	AD7606Reset(0);
 
-	//Setup the timer for the ADC clock
-	Chip_IOCON_PinMux(LPC_IOCON, 4, 28, IOCON_MODE_INACT, IOCON_FUNC2);		//Setup P4.28 as MAT2.0
+	AD7606SetOSMode(1,AD7606_OS_RATIO_4);//set how many samples will be filtered to get one output
+	AD7606SetPowerMode(1,AD7606_POWER_MODE_ON);
+	AD7606SetRange(1,AD7606_RANGE_5V);
+	AD7606Reset(1);
 
-	//Initialize timer 2 for the ADC data clock
-	Chip_TIMER_Init(LPC_TIMER2);
-
-	//Set timer2 clock source to PCLK
-	Chip_TIMER_TIMER_SetCountClockSrc(LPC_TIMER2 ,TIMER_CAPSRC_RISING_PCLK, 0);
-
-	//Set prescalar to zero. If we need a very slow clock (compared to 30MHz), this may need to change
-	Chip_TIMER_PrescaleSet(LPC_TIMER2, 0);
-
-	//Set timer2 match value
-	//TODO: check to see if the desired clock rate is a significant fraction of pclk, and output a warning if so
-	//TODO: Maybe make a variable for pclk so I don't have to call the function 3 times?
-	/*if(AD7606_DATA_CLOCK_HZ > Chip_Clock_GetPeripheralClockRate(SYSCTL_PCLK_TIMER2))
-	{
-		AD7606_DATA_CLOCK_HZ = Chip_Clock_GetPeripheralClockRate(SYSCTL_PCLK_TIMER2);
-	}*/
-
-	Chip_TIMER_SetMatch(LPC_TIMER2, 0, ((Chip_Clock_GetPeripheralClockRate(SYSCTL_PCLK_TIMER2)/(2*AD7606_DATA_CLOCK_HZ))-1) );
-
-	//Timer2 should reset on match
-	Chip_TIMER_ResetOnMatchEnable(LPC_TIMER2, 0);
-
-	//Timer2 should toggle MR2.0 on match0
-	Chip_TIMER_ExtMatchControlSet(LPC_TIMER2, 1, TIMER_EXTMATCH_TOGGLE, 0);
-
-	//Setup an interrupt to run opposite of the adc master clock
-	Chip_TIMER_SetMatch(LPC_TIMER2, 1, ((Chip_Clock_GetPeripheralClockRate(SYSCTL_PCLK_TIMER2)/(2*AD7606_DATA_CLOCK_HZ))-1)/2 );		//Match register 1 should be set to half of match register 0
-	Chip_TIMER_MatchEnableInt(LPC_TIMER2, 1);	//Interrupts will be generated when MR1 matches the timer value
-
-	NVIC_DisableIRQ(TIMER2_IRQn);
-	NVIC_SetPriority(TIMER2_IRQn, 0x00);	//Set interrupt to high priority (0 is highest, 31 is 0x1F is lowest.)
-	NVIC_EnableIRQ(TIMER2_IRQn);
-
-
-
-	AD7606Reset();
+	AD7606SetOSMode(2,AD7606_OS_RATIO_4);//set how many samples will be filtered to get one output
+	AD7606SetPowerMode(2,AD7606_POWER_MODE_ON);
+	AD7606SetRange(2,AD7606_RANGE_5V);
+	AD7606Reset(2);
 
 	ADC_Status = AD7606_STATUS_READY;
 
 	return;
 }
 
-void AD7606SetOSMode(uint8_t OSModeToSet)
+void AD7606SetOSMode(uint8_t chipNumber, uint8_t OSModeToSet)
 {
 	uint8_t BitsToSet = 0;
 
@@ -103,58 +101,109 @@ void AD7606SetOSMode(uint8_t OSModeToSet)
 		BitsToSet |= (1 << AD7606_OS2_BIT);
 	}
 
-	TCA9554A_SetStateBits(AD7606_IO_EXP_ADDR, ((1<<AD7606_OS0_BIT) | (1<<AD7606_OS1_BIT) | (1<<AD7606_OS2_BIT)), BitsToSet);
+	switch (chipNumber){
+	case 0:
+		TCA9554A_SetStateBits(AD7606_1_IO_EXP_ADDR, ((1<<AD7606_OS0_BIT) | (1<<AD7606_OS1_BIT) | (1<<AD7606_OS2_BIT)), BitsToSet);
+		break;
+	case 1:
+		TCA9554A_SetStateBits(AD7606_2_IO_EXP_ADDR, ((1<<AD7606_OS0_BIT) | (1<<AD7606_OS1_BIT) | (1<<AD7606_OS2_BIT)), BitsToSet);
+		break;
+	case 2:
+		TCA9554A_SetStateBits(AD7606_3_IO_EXP_ADDR, ((1<<AD7606_OS0_BIT) | (1<<AD7606_OS1_BIT) | (1<<AD7606_OS2_BIT)), BitsToSet);
+		break;
+	}
+
 	return;
 }
 
-void AD7606Reset(void)
+void AD7606Reset(uint8_t chipNumber)
 {
-	TCA9554A_SetStateBit(AD7606_IO_EXP_ADDR, AD7606_RESET_BIT, 1);
-	TCA9554A_SetStateBit(AD7606_IO_EXP_ADDR, AD7606_RESET_BIT, 0);
+	switch (chipNumber){
+	case 0:
+		TCA9554A_SetStateBit(AD7606_1_IO_EXP_ADDR, AD7606_RESET_BIT, 1);
+		TCA9554A_SetStateBit(AD7606_1_IO_EXP_ADDR, AD7606_RESET_BIT, 0);
+		break;
+	case 1:
+		TCA9554A_SetStateBit(AD7606_2_IO_EXP_ADDR, AD7606_RESET_BIT, 1);
+		TCA9554A_SetStateBit(AD7606_2_IO_EXP_ADDR, AD7606_RESET_BIT, 0);
+		break;
+	case 2:
+		TCA9554A_SetStateBit(AD7606_3_IO_EXP_ADDR, AD7606_RESET_BIT, 1);
+		TCA9554A_SetStateBit(AD7606_3_IO_EXP_ADDR, AD7606_RESET_BIT, 0);
+		break;
+	}
+
 	return;
 }
 
 //Note: The part will need to be reinitialized on power up.
-void AD7606SetPowerMode(uint8_t PowerModeToSet)
+void AD7606SetPowerMode(uint8_t chipNumber, uint8_t PowerModeToSet)
 {
+	uint8_t exp_addr;
+	switch (chipNumber){
+	case 0:
+		exp_addr=AD7606_1_IO_EXP_ADDR;
+		break;
+	case 1:
+		exp_addr=AD7606_2_IO_EXP_ADDR;
+		break;
+	case 2:
+		exp_addr=AD7606_3_IO_EXP_ADDR;
+		break;
+	}
+
 	if(PowerModeToSet == AD7606_POWER_MODE_STANDBY)
 	{
 		//Range bit = 1
 		//Standby bit = 0
-		TCA9554A_SetStateBits(AD7606_IO_EXP_ADDR, ((1<<AD7606_STANDBY_BIT) | (1<<AD7606_RANGE_BIT)), (1<<AD7606_RANGE_BIT));
+		TCA9554A_SetStateBits(exp_addr, ((1<<AD7606_STANDBY_BIT) | (1<<AD7606_RANGE_BIT)), (1<<AD7606_RANGE_BIT));
 	}
 	else if (PowerModeToSet == AD7606_POWER_MODE_SHUTDOWN)
 	{
 		//Range bit = 0
 		//Standby bit = 0
-		TCA9554A_SetStateBits(AD7606_IO_EXP_ADDR, ((1<<AD7606_STANDBY_BIT) | (1<<AD7606_RANGE_BIT)), 0x00);
+		TCA9554A_SetStateBits(exp_addr, ((1<<AD7606_STANDBY_BIT) | (1<<AD7606_RANGE_BIT)), 0x00);
 	}
 	else
 	{
 		//The range bit may need to be changed after power up
 		//The part must also be reset if powering up from shutdown
-		TCA9554A_SetStateBit(AD7606_IO_EXP_ADDR, AD7606_STANDBY_BIT, 1);
+		TCA9554A_SetStateBit(exp_addr, AD7606_STANDBY_BIT, 1);
 	}
 	return;
 }
 
 //The part will probably need a reset after this is changed
-void AD7606SetRange(uint8_t RangeToSet)
+void AD7606SetRange(uint8_t chipNumber, uint8_t RangeToSet)
 {
+	uint8_t bit;
+
 	if(RangeToSet == AD7606_RANGE_5V)
 	{
-		TCA9554A_SetStateBit(AD7606_IO_EXP_ADDR, AD7606_RANGE_BIT, 0);
+		bit=0;
 	}
 	else if(RangeToSet == AD7606_RANGE_5V)
 	{
-		TCA9554A_SetStateBit(AD7606_IO_EXP_ADDR, AD7606_RANGE_BIT, 1);
+		bit=1;
+	}
+
+	switch (chipNumber){
+	case 0:
+		TCA9554A_SetStateBit(AD7606_1_IO_EXP_ADDR, AD7606_RANGE_BIT, bit);
+		break;
+	case 1:
+		TCA9554A_SetStateBit(AD7606_2_IO_EXP_ADDR, AD7606_RANGE_BIT, bit);
+		break;
+	case 2:
+		TCA9554A_SetStateBit(AD7606_3_IO_EXP_ADDR, AD7606_RANGE_BIT, bit);
+		break;
 	}
 
 	return;
 }
 
 //Poll the ready pin. When the pin goes low, the data is ready
-void AD7606WaitReady(void)
+void AD7606WaitReady(uint8_t chipNumber)
 {
 	uint8_t ReadyBit;
 	uint8_t OldReadyBit;
@@ -165,7 +214,19 @@ void AD7606WaitReady(void)
 	OldReadyBit = 0;
 	while(1)
 	{
-		ReadyBit = Chip_GPIO_ReadPortBit(LPC_GPIO, AD7606_ADBUSY_PORT, AD7606_ADBUSY_PIN);
+		switch (chipNumber){
+		case 0:
+			ReadyBit = Chip_GPIO_ReadPortBit(LPC_GPIO, AD7606_1_ADBUSY_PORT, AD7606_1_ADBUSY_PIN);
+			break;
+		case 1:
+			ReadyBit = Chip_GPIO_ReadPortBit(LPC_GPIO, AD7606_2_ADBUSY_PORT, AD7606_2_ADBUSY_PIN);
+			break;
+		case 2:
+			ReadyBit = Chip_GPIO_ReadPortBit(LPC_GPIO, AD7606_3_ADBUSY_PORT, AD7606_3_ADBUSY_PIN);
+			break;
+		}
+
+
 		if(((OldReadyBit == 1) && (ReadyBit == 0)) || (Timeout > 100000))
 		{
 			if(Timeout > 100000)
@@ -180,49 +241,39 @@ void AD7606WaitReady(void)
 	return;
 }
 
-void AD7606StartDataClock(uint32_t ClockRateToSet)
+void AD7606_Select(uint8_t chipNumber, uint8_t Select)
 {
-	//Start timer 2
-	Chip_TIMER_StopOnMatchDisable(LPC_TIMER2, 0);
-	Chip_TIMER_Enable(LPC_TIMER2);
-	return;
-}
-
-void TIMER2_IRQHandler(void)
-{
-	//ADC_DataArray
-
-	Chip_TIMER_ClearMatch(LPC_TIMER2, 1);
-
-	//Board_LED_Set(2, (bool)ADC_Dataclock_Count);
-
-	if(ADC_Dataclock_Count == 1)
-	{
-		ADC_DataArray[ADC_SampleCount] = (int16_t)((Chip_GPIO_ReadPort(LPC_GPIO, 2) & 0xFF) << 8);
-		//ADC_DataArray[ADC_SampleCount] = (int16_t)(Chip_GPIO_ReadPort(LPC_GPIO, 2) & 0xFF);
-		ADC_Dataclock_Count++;
-	}
-	else if(ADC_Dataclock_Count == 3)
-	{
-		ADC_DataArray[ADC_SampleCount] |= (int16_t)((Chip_GPIO_ReadPort(LPC_GPIO, 2)) & 0xFF);
-
-		ADC_Dataclock_Count = 0;
-
-		if(ADC_SampleCount == 7)
+	switch (chipNumber){
+	case 0:
+		if(Select == 1)
 		{
-			//Turn of the timer here
-			Chip_TIMER_StopOnMatchEnable(LPC_TIMER2, 0);	//Timer will stop on next interrupt
-			ADC_SampleCount = 0;
-			ADC_Status = AD7606_STATUS_DATAREADY;
+			Chip_GPIO_WritePortBit(LPC_GPIO, AD7606_1_CS_PORT, AD7606_1_CS_PIN, false);		//Low to select
 		}
 		else
 		{
-			ADC_SampleCount++;
+			Chip_GPIO_WritePortBit(LPC_GPIO, AD7606_1_CS_PORT, AD7606_1_CS_PIN, true);		//High to deselect
 		}
-	}
-	else
-	{
-		ADC_Dataclock_Count++;
+		break;
+	case 1:
+		if(Select == 1)
+		{
+			Chip_GPIO_WritePortBit(LPC_GPIO, AD7606_2_CS_PORT, AD7606_2_CS_PIN, false);		//Low to select
+		}
+		else
+		{
+			Chip_GPIO_WritePortBit(LPC_GPIO, AD7606_2_CS_PORT, AD7606_2_CS_PIN, true);		//High to deselect
+		}
+		break;
+	case 2:
+		if(Select == 1)
+		{
+			Chip_GPIO_WritePortBit(LPC_GPIO, AD7606_3_CS_PORT, AD7606_3_CS_PIN, false);		//Low to select
+		}
+		else
+		{
+			Chip_GPIO_WritePortBit(LPC_GPIO, AD7606_3_CS_PORT, AD7606_3_CS_PIN, true);		//High to deselect
+		}
+		break;
 	}
 
 	return;
@@ -233,47 +284,83 @@ uint8_t AD7606GetStatus(void)
 	return ADC_Status;
 }
 
-void AD7606GetDataSet(uint8_t sel, uint16_t* DataSet)
+void AD7606GetDataSet(uint8_t chipNumber, uint16_t* DataSet)
 {
 	uint8_t i;
+	Chip_SSP_DATA_SETUP_T xf_setup;
+	SSP_ConfigFormat ssp_format;
+	uint8_t ADInputData[16];
+	uint8_t chipAddress;
 
-	//TODO
-	//Implement chip select!!!
+	switch (chipNumber){
+	case 0:
+		chipAddress=LPC_SSP1;
+		break;
+	case 1:
+		chipAddress=LPC_SSP1;
+		break;
+	case 2:
+		chipAddress=LPC_SSP1;
+		break;
+	}
 
 	//Start conversion
-	AD7606_Start(true);
+	AD7606_Start(chipNumber,true);
 
 	//Wait for data to become available
-	AD7606WaitReady();
-	AD7606_Start(false);
+	AD7606WaitReady(chipNumber);
+	AD7606_Start(chipNumber,false);
 
-	AD7606StartDataClock(AD7606_DATA_CLOCK_HZ);
+	//Set up the SSP format for the AD7606, SPI mode 10
+	ssp_format.frameFormat = SSP_FRAMEFORMAT_SPI;
+	ssp_format.bits = SSP_BITS_8;
+	ssp_format.clockMode = SSP_CLOCK_CPHA0_CPOL1;
+	Chip_SSP_SetFormat(chipAddress, &ssp_format);
 
-	//Get data from the parallel interface, this happens in an interrupt
-	while(1)
-	{
-		if(ADC_Status == AD7606_STATUS_DATAREADY)
-		{
-			break;
-		}
-	}
+	//Chip_SSP_Enable(LPC_SSP1);
+	xf_setup.length = 16;
+
+	xf_setup.tx_data = NULL;
+	xf_setup.rx_data = ADInputData;
+	xf_setup.rx_cnt = xf_setup.tx_cnt = 0;
+
+	//Select A/D 1
+	AD7606_Select(chipNumber,1);
+
+	//Read data from A/D 1
+	Chip_SSP_RWFrames_Blocking(chipAddress, &xf_setup);
+
+	//Deselect A/D 1
+	AD7606_Select(chipNumber,0);
 
 	for(i=0; i<8; i++)
 	{
-		DataSet[i]=ADC_DataArray[i];
+		DataSet[i] = ADInputData[i*2] + ADInputData[i*2+1]<<8;
 	}
 
-/*
-	for(i=0; i<8; i++)
-	{
-		//printf("ADC[%u]: 0x%02X, 0x%02X,", i, ADC_DataArray2[i*2], ADC_DataArray2[i*2+1]);
-		//ADC_DataArray[i] = (int16_t)((ADC_DataArray2[i*2] & 0xFF) << 8);
-		//ADC_DataArray[i] |= (int16_t)((ADC_DataArray2[i*2+1]) & 0xFF);
-		//printf(" %d counts\r\n", ADC_DataArray[i]);
-		printf("ADC[%u]: %d counts\r\n", i, ADC_DataArray[i]);
-	}
-*/
+
 	ADC_Status = AD7606_STATUS_READY;
+	return;
+}
+
+void AD7606_Start(uint8_t chipNumber, bool Started)
+{
+	//TODO: move this to the .c file, update to handle multiple AD7606 chips
+	switch (chipNumber)
+	{
+		case 1:
+			Chip_GPIO_WritePortBit(LPC_GPIO, AD7606_1_ADSTART_PORT, AD7606_1_ADSTART_PIN, Started);
+			break;
+
+		case 2:
+			Chip_GPIO_WritePortBit(LPC_GPIO, AD7606_2_ADSTART_PORT, AD7606_2_ADSTART_PIN, Started);
+			break;
+
+		case 3:
+			Chip_GPIO_WritePortBit(LPC_GPIO, AD7606_3_ADSTART_PORT, AD7606_3_ADSTART_PIN, Started);
+			break;
+	}
+
 	return;
 }
 

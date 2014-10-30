@@ -128,13 +128,13 @@ void MX106T_Send(uint8_t* parameters, uint8_t outLength, uint8_t *inputBuffer, u
 	
 	UART_RTSConfig(SERVO_UART,1);//set Ready To Send
 
-	sendSerialChar(0xFF,SERVO_UART);
-	sendSerialChar(0xFF,SERVO_UART);
+	sendSerialUint8(0xFF,SERVO_UART);
+	sendSerialUint8(0xFF,SERVO_UART);
 	for(i=0;i<=outLength;i++)
 	{
-		sendSerialChar(parameters[i],SERVO_UART);
+		sendSerialUint8(parameters[i],SERVO_UART);
 	}
-	sendSerialChar(checksum,SERVO_UART);
+	sendSerialUint8(checksum,SERVO_UART);
 
 	UART_RTSConfig(SERVO_UART,0);//clear Ready To Send
 

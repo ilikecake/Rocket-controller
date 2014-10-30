@@ -8,7 +8,7 @@
 #ifndef TCA9554A_H_
 #define TCA9554A_H_
 
-#define TCA9554A_I2C_PORT		I2C0
+#define TCA9554A_I2C_PORT		I2C1
 
 #define TCA9554A_CR_INPUT		0x00
 #define TCA9554A_CR_OUTPUT		0x01

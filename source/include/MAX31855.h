@@ -27,11 +27,15 @@
 #define _MAX31855_H_
 #include "main.h"
 
-#define MAX31855_CS_PORT		0x00
-#define MAX31855_CS1_PIN		17
-#define MAX31855_CS2_PIN		18
-#define MAX31855_CS3_PIN		19
-#define MAX31855_CS4_PIN		20
+//Chip select pins are controlled by the XRA1402 expander
+#define MAX31855_CS1_PIN		7
+#define MAX31855_CS2_PIN		6
+#define MAX31855_CS3_PIN		4
+#define MAX31855_CS4_PIN		5
+#define MAX31855_CS5_PIN		3
+#define MAX31855_CS6_PIN		2
+#define MAX31855_CS7_PIN		1
+#define MAX31855_CS8_PIN		0
 
 
 void MAX31855Init(void);

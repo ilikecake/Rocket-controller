@@ -29,6 +29,7 @@
 //Includes
 #include "stdint.h"
 #include "config.h"
+#include "controlLoop.h"
 
 #ifndef COMMAND_USER_CONFIG
 	#error: Command interpreter settings not defined. See command.h for details.

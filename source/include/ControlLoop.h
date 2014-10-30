@@ -41,8 +41,8 @@
 unsigned int commandNum;
 unsigned int commandMax;
 unsigned int commandTime[MAX_COMMANDS];					//time that action will occur
-Bool DO_Command[MAX_COMMANDS][TOTAL_DO_CHANNELS];		//state of digital output
-int Servo_Command[MAX_COMMANDS][TOTAL_SERVO_CHANNELS];	//state of propellant valve at commandTime
+uint16_t DO_Command[MAX_COMMANDS];		//state of digital.  DO0 is LSB, DO16 is MSB
+uint16_t Servo_Command[MAX_COMMANDS][TOTAL_SERVO_CHANNELS];	//state of propellant valve at commandTime
 
 int redlineTimeStart[MAX_REDLINES];		//time at which redline is activated
 int redlineTimeEnd[MAX_REDLINES];		//time at which redline is deactivated
@@ -51,33 +51,38 @@ int redlineMin[MAX_REDLINES];			//minimum allowable value below which the test w
 int redlineMax[MAX_REDLINES];			//maximum allowable value above which the test will be aborted
 
 //
+portTickType fireStartTime;
 uint8_t runningControl;
 uint8_t runningData;
 uint8_t	activeSaveData;
-uint8_t activeEstop;
+uint8_t redlinesEnabled;
+uint8_t emergencyStop;
 //uint32_t tData, tControl;
 
 
 //buffers to store all data
 xSemaphoreHandle dataSemaphore;	//control data handling
+
+uint8_t servoCommandFlag;	//this is set to 1 a few milliseconds before the control updates.  It prevents read requests from being sent to the servo when they would conflict
 xSemaphoreHandle servoSemaphore;	//don't allow new commands to be sent to servo before old commands are complete
+uint16_t dataServo[TOTAL_SERVO_CHANNELS*2];		//store current position of servo motors
 
-uint32_t dataTime[2];	//store start and end time of data sample
-uint16_t analogBuffer[AI_CHIPS*AI_CHANNELS_PER_CHIP];	//store all analog input channels
-uint16_t TCbuffer[2*TC_CHIPS*TC_CHANNELS_PER_CHIP];			//store temperature and cold junction  for each TC channel
-uint16_t ServoPosition[TOTAL_SERVO_CHANNELS];		//store current position of servo motors
+uint32_t dataSendTime[2];	//store start and end time of data sample
+uint16_t dataSendBuffer[AI_CHIPS*AI_CHANNELS_PER_CHIP+2*TC_CHIPS*TC_CHANNELS_PER_CHIP+TOTAL_SERVO_CHANNELS*2+4];	//store all channels
 
-			
+
+
 void InitControl(void);
 //void MainControlLoop(void);
 void UpdateCommand(uint32_t tNow);
 void ReadData(void);
+void ReadServo(void);
 void SendData(void);
 
-void SaveDataToFlash(void);//uint32_t *dataTime[], uint16_t *analogBuffer[], uint16_t *TCbuffer[], uint16_t *ServoPosition[], uint8_t runningControl, uint8_t activeEstop);
+void SaveDataToFlash(void);//uint32_t *dataTime[], uint16_t *dataAnalog[], uint16_t *dataTC[], uint16_t *ServoPosition[], uint8_t runningControl, uint8_t activeEstop);
 //void FinishSaveData();
 
-void Redlines(uint32_t tNow);
+void CheckRedlines();
 
 
 #endif

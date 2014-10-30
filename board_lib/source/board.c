@@ -54,15 +54,15 @@
 #define JOYSTICK_RIGHT_GPIO_BIT_NUM             16
 #define JOYSTICK_PRESS_GPIO_PORT_NUM            0
 #define JOYSTICK_PRESS_GPIO_BIT_NUM             17
-#define LED0_GPIO_PORT_NUM                      2
-#define LED0_GPIO_BIT_NUM                       11
-#define LED1_GPIO_PORT_NUM                      2
-#define LED1_GPIO_BIT_NUM                       12
-#define LED2_GPIO_PORT_NUM                      2
-#define LED2_GPIO_BIT_NUM                       13
+#define LED0_GPIO_PORT_NUM                      1
+#define LED0_GPIO_BIT_NUM                       9
+#define LED1_GPIO_PORT_NUM                      1
+#define LED1_GPIO_BIT_NUM                       10
+#define LED2_GPIO_PORT_NUM                      1
+#define LED2_GPIO_BIT_NUM                       14
 
-#define LED3_GPIO_PORT_NUM                      1
-#define LED3_GPIO_BIT_NUM                       29
+//#define LED3_GPIO_PORT_NUM                      1
+//#define LED3_GPIO_BIT_NUM                       29
 
 /*****************************************************************************
  * Public types/enumerations/variables
@@ -83,13 +83,11 @@ static void Board_LED_Init(void)
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, true);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED1_GPIO_PORT_NUM, LED1_GPIO_BIT_NUM, true);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, true);
-	Chip_GPIO_WriteDirBit(LPC_GPIO, LED3_GPIO_PORT_NUM, LED3_GPIO_BIT_NUM, true);
 
 	//LEDs start off (high)
-	Chip_GPIO_WritePortBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, true);
-	Chip_GPIO_WritePortBit(LPC_GPIO, LED1_GPIO_PORT_NUM, LED1_GPIO_BIT_NUM, true);
-	Chip_GPIO_WritePortBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, true);
-	Chip_GPIO_WritePortBit(LPC_GPIO, LED3_GPIO_PORT_NUM, LED3_GPIO_BIT_NUM, true);
+	Chip_GPIO_WritePortBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, false);
+	Chip_GPIO_WritePortBit(LPC_GPIO, LED1_GPIO_PORT_NUM, LED1_GPIO_BIT_NUM, false);
+	Chip_GPIO_WritePortBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, false);
 }
 
 /* Sets the state of a board LED to on or off
@@ -98,26 +96,21 @@ static void Board_LED_Init(void)
 void Board_DO_Set(uint8_t channel, bool state)
 {
 
-
 	if (channel == 0)
 	{
-		Chip_GPIO_WritePortBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, state);
+		Chip_GPIO_WritePortBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, !state);
 	}
 	else if(channel == 1)
 	{
-		Chip_GPIO_WritePortBit(LPC_GPIO, LED1_GPIO_PORT_NUM, LED1_GPIO_BIT_NUM, state);
+		Chip_GPIO_WritePortBit(LPC_GPIO, LED1_GPIO_PORT_NUM, LED1_GPIO_BIT_NUM, !state);
 	}
 	else if(channel == 2)
 	{
-		Chip_GPIO_WritePortBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, state);
-	}
-	else if(channel == 3)
-	{
-		Chip_GPIO_WritePortBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, state);
+		Chip_GPIO_WritePortBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, !state);
 	}
 	else
 	{
-		Chip_GPIO_WritePortBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, state);
+		Chip_GPIO_WritePortBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, !state);
 
 	}
 
@@ -191,7 +184,7 @@ void Board_Debug_Init(void)
 
 	/* Setup UART for 115.2K8N1 */
 	Chip_UART_Init(DEBUG_UART);
-	Chip_UART_SetBaud(DEBUG_UART, 230400);//115200
+	Chip_UART_SetBaud(DEBUG_UART, 230400);
 	Chip_UART_ConfigData(DEBUG_UART, UART_DATABIT_8, UART_PARITY_NONE, UART_STOPBIT_1);
 
 	/* Enable UART Transmit */
@@ -260,19 +253,20 @@ void Board_UARTPutSTR(char *str)
  * Note: LED numbers start at 1						*/
 void Board_LED_Set(uint8_t LEDNumber, bool On)
 {
-	On = !On;
-	if (LEDNumber == 1)
+	//On = !On;
+	if (LEDNumber == 0)
 	{
 		Chip_GPIO_WritePortBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, On);
 	}
-	else if(LEDNumber == 2)
+	else if(LEDNumber == 1)
 	{
 		Chip_GPIO_WritePortBit(LPC_GPIO, LED1_GPIO_PORT_NUM, LED1_GPIO_BIT_NUM, On);
 	}
-	else if(LEDNumber == 3)
+	else if(LEDNumber == 2)
 	{
 		Chip_GPIO_WritePortBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, On);
 	}
+
 }
 
 /* Returns the current state of a board LED */
@@ -300,12 +294,12 @@ void Board_Init(void)
 }
 
 /* Returns the MAC address assigned to this board */
-void Board_ENET_GetMacADDR(uint8_t *mcaddr)
+/*void Board_ENET_GetMacADDR(uint8_t *mcaddr)
 {
 	const uint8_t boardmac[] = {0x00, 0x60, 0x37, 0x12, 0x34, 0x56};
 
 	memcpy(mcaddr, boardmac, 6);
-}
+}*/
 
 /* Initialize pin muxing for SSP interface */
 void Board_SSP_Init(LPC_SSP_T *pSSP)
@@ -320,7 +314,7 @@ void Board_SSP_Init(LPC_SSP_T *pSSP)
 		 * P0.9: MOSI
 		 */
 		Chip_IOCON_PinMux(LPC_IOCON, 0, 7, IOCON_MODE_INACT, IOCON_FUNC2);
-		Chip_IOCON_PinMux(LPC_IOCON, 0, 6, IOCON_MODE_INACT, IOCON_FUNC2);
+		//Chip_IOCON_PinMux(LPC_IOCON, 0, 6, IOCON_MODE_INACT, IOCON_FUNC2);
 		Chip_IOCON_PinMux(LPC_IOCON, 0, 8, IOCON_MODE_INACT, IOCON_FUNC2);
 		Chip_IOCON_PinMux(LPC_IOCON, 0, 9, IOCON_MODE_INACT, IOCON_FUNC2);
 	}
@@ -328,15 +322,15 @@ void Board_SSP_Init(LPC_SSP_T *pSSP)
 		/* Set up clock and muxing for SSP0 interface */
 		/*
 		 * Initialize SSP0 pins connect
-		 * P0.15: SCK
-		 * P0.16: SSEL
-		 * P0.17: MISO
-		 * P0.18: MOSI
+		 * P1.20: SCK
+		 * P1.21: SSEL
+		 * P1.23: MISO
+		 * P1.24: MOSI
 		 */
-		Chip_IOCON_PinMux(LPC_IOCON, 0, 15, IOCON_MODE_INACT, IOCON_FUNC2);
-		Chip_IOCON_PinMux(LPC_IOCON, 0, 16, IOCON_MODE_INACT, IOCON_FUNC2);
-		Chip_IOCON_PinMux(LPC_IOCON, 0, 17, IOCON_MODE_INACT, IOCON_FUNC2);
-		Chip_IOCON_PinMux(LPC_IOCON, 0, 18, IOCON_MODE_INACT, IOCON_FUNC2);
+		Chip_IOCON_PinMux(LPC_IOCON, 1, 20, IOCON_MODE_INACT, IOCON_FUNC2);
+		//Chip_IOCON_PinMux(LPC_IOCON, 1, 21, IOCON_MODE_INACT, IOCON_FUNC2);
+		Chip_IOCON_PinMux(LPC_IOCON, 1, 23, IOCON_MODE_INACT, IOCON_FUNC2);
+		Chip_IOCON_PinMux(LPC_IOCON, 1, 24, IOCON_MODE_INACT, IOCON_FUNC2);
 	}
 }
 
@@ -391,8 +385,9 @@ void Board_I2C_Init(I2C_ID_T id)
 		break;
 
 	case I2C1:
-		Chip_IOCON_PinMux(LPC_IOCON, 0, 19, IOCON_MODE_INACT, IOCON_FUNC2);
-		Chip_IOCON_PinMux(LPC_IOCON, 0, 20, IOCON_MODE_INACT, IOCON_FUNC2);
+		//TODO: These are not always the right pins
+		Chip_IOCON_PinMux(LPC_IOCON, 0, 19, IOCON_MODE_INACT, IOCON_FUNC3);
+		Chip_IOCON_PinMux(LPC_IOCON, 0, 20, IOCON_MODE_INACT, IOCON_FUNC3);
 		Chip_IOCON_EnableOD(LPC_IOCON, 0, 19);
 		Chip_IOCON_EnableOD(LPC_IOCON, 0, 20);
 		break;

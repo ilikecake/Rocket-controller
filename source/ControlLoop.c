@@ -14,12 +14,9 @@ void InitControl(void)
 	for(i=0;i<=MAX_COMMANDS;i++)
 	{
 		//Timing
-		commandTime[i] = i*1000;//milliseconds
+		commandTime[i] = 0;//milliseconds
 
-		for(channel=0;channel<=TOTAL_DO_CHANNELS;channel++)
-		{
-			DO_Command[i][channel] = 0;
-		}
+		DO_Command[i] = 0;//sets all DO channels to 0
 
 		for(channel=0;channel<=TOTAL_SERVO_CHANNELS;channel++)
 		{
@@ -39,7 +36,8 @@ void InitControl(void)
 	}
 
 
-	activeEstop=1;		//redlines active
+	redlinesEnabled = 1;		//redlines active
+	emergencyStop = 0;		//reset Emergency stop flag to not triggered
 	runningControl = 0;		//not running a test sequence
 	runningData = 0;		//not reading data from TC chip and A/D
 	activeSaveData=0;	//not saving data to flash memory
@@ -48,51 +46,47 @@ void InitControl(void)
 	//give values to servo position
 	for (i=0;i<TOTAL_SERVO_CHANNELS;i++)
 	{
-		ServoPosition[i] = 0;
+		dataServo[i] = 0;
 	}
 
 	return;
 	
 }
 
+/*
 void UpdateCommand(uint32_t tNow)
 {
-	uint8_t i;
-	uint8_t g;
-	g=0;
-	for (i=0;i<TOTAL_DO_CHANNELS;i++)
-	{
-		if (g==0)
-		{g=1;}
-		else if (g==1)
-		{g=0;}
-
-		Board_DO_Set(i, g);//set all outputs to 0
-	}
-
-	/*
+	uint8_t channel;
 	if (runningControl==1)
 	{
 		if (commandNum<=commandMax)
 		{
+
 			//wait for next command time
-			if (commandTime[commandNum] <= tNow-tControl)
+			if (commandTime[commandNum] <= tNow-fireStartTime)
 			{
+
+				for (channel=0;channel<TOTAL_DO_CHANNELS;channel++)
+				{
+					//DO0 is LSB, DO16 is MSB
+					Board_DO_Set(channel, (DO_Command[commandNum]&(1<<channel))>>channel );
+				}
+
 				Servo(1, Servo_Command[commandNum][0]);     //N2O Valve
 				Servo(2, Servo_Command[commandNum][1]);     //Fuel Valve
 				
 				commandNum++;
-				//tNow = TimeMS();			
 			}
 		}
 		else
 		{	
-			//control sequence has ended
-			LED(2,0);
-			//turn off relays after test
-			Relay(1,0);					//ign relay
-			Relay(2,0);					//fuel isolation relay
-			Relay(3,0);					//N2O isolation relay
+
+			////control sequence has ended
+			//LED(2,0);
+			////turn off relays after test
+			//Relay(1,0);					//ign relay
+			//Relay(2,0);					//fuel isolation relay
+			//Relay(3,0);					//N2O isolation relay
 
 			runningControl=0;
 		}
@@ -103,41 +97,109 @@ void UpdateCommand(uint32_t tNow)
 		LED(2,0);
 		runningControl=0;
 	}	
-	*/
+
 	return;	
 }
+*/
 
 void ReadData(void)
 {	
 	uint8_t channel;
 	uint8_t chipsel;
+	uint8_t i;
 	uint16_t DataSet[8];
+
+	uint32_t dataTime[2];								//store start and end time of data sample
+	uint16_t dataAnalog[AI_CHIPS*AI_CHANNELS_PER_CHIP];	//store all analog input channels
+	uint16_t dataTC[2*TC_CHIPS*TC_CHANNELS_PER_CHIP];	//store temperature and cold junction  for each TC channel
+
+	//record data acquisition start time
+	dataTime[0] = xTaskGetTickCount();
+
+	//put analog channel data into buffer
+	for(chipsel=0;chipsel<AI_CHIPS;chipsel++)
+	{
+		//get analog data from chip "chipsel"
+		AD7606GetDataSet(chipsel, DataSet);
+
+		for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
+		{
+			dataAnalog[channel+chipsel*AI_CHANNELS_PER_CHIP] = DataSet[channel];
+		}
+	}
+
+	//get temperature and cold junction data for "channel"
+	for(channel=0;channel<TC_CHIPS;channel++)
+	{
+		dataTC[channel]=MAX31855read(channel, &dataTC[channel+TC_CHIPS]);
+	}
+
+	//servo data is read on a seperate thread because it is slow
+
+	//record data acquisition end time
+	dataTime[1] = xTaskGetTickCount();
+
 
 	if( xSemaphoreTake( dataSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
 	{
-		//record data acquisition start time
-		dataTime[0] = xTaskGetTickCount();
 
-		//put analog channel data into buffer
+		dataSendTime[0] = dataTime[0] - fireStartTime;	//store start and end time of data sample
+		dataSendTime[1] = dataTime[1] - fireStartTime;	//record data acquisition end time
+
+		i=0;
+		//put analog channel data into send buffer
 		for(chipsel=0;chipsel<AI_CHIPS;chipsel++)
 		{
-			//get analog data from chip "chipsel"
-			AD7606GetDataSet(chipsel, DataSet);
-
 			for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
 			{
-				analogBuffer[channel+chipsel*AI_CHANNELS_PER_CHIP] = DataSet[channel];
+				dataSendBuffer[i] = dataAnalog[channel+chipsel*AI_CHANNELS_PER_CHIP];
+				i++;
 			}
 		}
 
-		for(channel=0;channel<TC_CHIPS;channel++)
+		//update temperature data to buffer then update cold junction data to buffer
+		for(channel=0;channel<TC_CHIPS*2;channel++)
 		{
-			//get temperature and cold junction data for "channel"
-			TCbuffer[channel]=MAX31855read(channel, &TCbuffer[channel+TC_CHIPS]);
+			dataSendBuffer[i]=dataTC[channel];
+			i++;
 		}
 
-		//record data acquisition end time
-		dataTime[1] = xTaskGetTickCount();
+
+		//servo buffer will not be time consistent
+		// if we want all servo data to be from the same time we need to update buffer from servo read thread
+		for (channel=0;channel<TOTAL_SERVO_CHANNELS*2;channel++)
+		{
+			//dataSendBuffer[AI_CHIPS*AI_CHANNELS_PER_CHIP+2*TC_CHIPS*TC_CHANNELS_PER_CHIP+i] = dataServo[i];
+			i++;
+		}
+
+
+		dataSendBuffer[i]=DO_Command[commandNum];//current DO state
+		i++;
+
+		//byte 44: contains RunState, E-State
+
+		dataSendBuffer[i]=runningControl;//bit 0: runningControl
+		dataSendBuffer[i]=dataSendBuffer[i] | (runningData<<1);//bit 1: runningData
+		dataSendBuffer[i]=dataSendBuffer[i] | (activeSaveData<<2);//bit 2: activeSaveData, saving data to flash memory
+		dataSendBuffer[i]=dataSendBuffer[i] | (redlinesEnabled<<3);//bit 3: redlinesEnabled, redlines active
+		dataSendBuffer[i]=dataSendBuffer[i] | (emergencyStop<<4);//bit 4: emergencyStop, reset Emergency stop flag
+
+/*
+		dataSendBuffer[i]=0;//bit 0: runningControl
+		dataSendBuffer[i]=dataSendBuffer[i] | (1<<1);//bit 1: runningData
+		dataSendBuffer[i]=dataSendBuffer[i] | (0<<2);//bit 2: activeSaveData, saving data to flash memory
+		dataSendBuffer[i]=dataSendBuffer[i] | (1<<3);//bit 3: redlinesEnabled, redlines active
+		dataSendBuffer[i]=dataSendBuffer[i] | (0<<4);//bit 4: emergencyStop, reset Emergency stop flag
+*/
+
+		i++;
+		dataSendBuffer[i]=45;//spare
+		i++;
+		dataSendBuffer[i]=46;//spare
+
+
+		//CheckRedlines();
 
 		//give data buffer semaphore
 		xSemaphoreGive(dataSemaphore);
@@ -151,10 +213,86 @@ void ReadData(void)
 	return;
 }
 
+
+void CheckRedlines()
+{
+
+	int n;
+	if (runningControl==1 && redlinesEnabled==1)
+	{
+		for(n=0;n<MAX_REDLINES;n++)
+		{
+			//check to see if redline has been setup
+			if (redlineTimeEnd[n]>>=0){
+
+				//check to see if redline is within active time range
+				if (redlineTimeStart[n] <= dataSendTime[1] && redlineTimeEnd[n] >= dataSendTime[1])
+				{
+					//check to see if value is outside of safe range
+					if ( (redlineMin[n] > dataSendBuffer[redlineChannel[n]]) || (redlineMax[n] < dataSendBuffer[redlineChannel[n]]) )
+					{//abort the test
+						emergencyStop = 1;
+						vTaskResume(vEStopTaskHandle);//make sure data is being acquired
+					}
+
+				}
+			}
+		}
+	}
+
+	return;
+}
+
+
+void ReadServo(void)
+{
+	uint8_t i;
+
+	//Read position and torque on both servos.
+	//Allow control loop to take semaphore between servo data requests
+
+	if (servoCommandFlag==0)//don't read from servo when a servo command is pending
+	{
+		for (i=0;i<TOTAL_SERVO_CHANNELS;i++)
+		{
+			if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
+			{
+				//dataServo[i] = MX106T_Read16bit(i,SERVO_PRESENT_POSITION_16);
+				dataServo[i] = 13;
+
+				xSemaphoreGive(servoSemaphore);//give back servo semaphore
+			}
+		}
+		for (i=0;i<TOTAL_SERVO_CHANNELS;i++)
+		{
+			if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
+			{
+				//dataServo[i] = MX106T_Read16bit(i,SERVO_PRESENT_TORQUE_16);
+				dataServo[TOTAL_SERVO_CHANNELS+i] = 61;
+
+				xSemaphoreGive(servoSemaphore);//give back servo semaphore
+			}
+		}
+
+
+		//update databuffer with new servo data
+		if( xSemaphoreTake( dataSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
+		{
+			for (i=0;i<TOTAL_SERVO_CHANNELS*2;i++)
+			{
+				dataSendBuffer[AI_CHIPS*AI_CHANNELS_PER_CHIP+2*TC_CHIPS*TC_CHANNELS_PER_CHIP+i] = dataServo[i];
+			}
+			xSemaphoreGive(dataSemaphore);//give back Data semaphore
+		}
+
+	}
+	return;
+}
+
 void SendData(void)
 {
 	uint8_t channel;
-	uint8_t chipsel;
+	//uint8_t chipsel;
 
 	//select UART channel which will send data back to the computer
 
@@ -163,39 +301,14 @@ void SendData(void)
 
 		sendSerialUint8(0xFF, DEBUG_UART);//send data start flag
 
-		sendSerialUInt32(dataTime[0],DEBUG_UART);//send data acquisition start time
-		sendSerialUInt32(dataTime[1],DEBUG_UART);//send data acquisition end time
+		sendSerialUInt32(dataSendTime[0],DEBUG_UART);//send data acquisition start time
+		sendSerialUInt32(dataSendTime[1],DEBUG_UART);//send data acquisition end time
 
-		//send analog channel data from buffer
-		for(chipsel=0;chipsel<AI_CHIPS;chipsel++)
+		for(channel=0;channel<AI_CHIPS*AI_CHANNELS_PER_CHIP+2*TC_CHIPS*TC_CHANNELS_PER_CHIP+TOTAL_SERVO_CHANNELS*2+4;channel++)
 		{
-			for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
-			{
-				sendSerialUInt16(analogBuffer[channel],DEBUG_UART);
-			}
+			sendSerialUInt16(dataSendBuffer[channel],DEBUG_UART);
 		}
 
-		//send temperature then cold junction data for each TC "channel"
-		for(channel=0;channel<2*TC_CHIPS;channel++)
-		{
-			sendSerialUInt16(TCbuffer[channel],DEBUG_UART);
-		}
-
-
-		for(channel=0;channel<TOTAL_SERVO_CHANNELS;channel++)
-		{
-			//sendSerialUInt16(ServoPosition[channel],DEBUG_UART);
-			//sendSerialUInt16(ServoPosition[channel],DEBUG_UART);//servo torque
-			sendSerialUInt16(42,DEBUG_UART);
-			sendSerialUInt16(43,DEBUG_UART);//servo torque
-		}
-
-
-		//spare outputs
-		sendSerialUInt16(44,DEBUG_UART);//spare
-		sendSerialUInt16(45,DEBUG_UART);//spare
-		sendSerialUInt16(46,DEBUG_UART);//spare
-		sendSerialUInt16(47,DEBUG_UART);//spare
 
 		//give data buffer semaphore
 		xSemaphoreGive(dataSemaphore);
@@ -209,7 +322,6 @@ void SendData(void)
 
 	return;
 }
-
 
 
 void SaveDataToFlash(void) //uint32_t *dataTime[], uint16_t *analogBuffer[], uint16_t *TCbuffer[], uint16_t *ServoPosition[], uint8_t runningControl, uint8_t activeEstop)
@@ -439,35 +551,3 @@ void OpenDataFromFlash(void)
 }
 
 
-void Redlines(uint32_t tNow)
-{
-	/*
-	int n;
-	if (runningControl==1 && activeEstop==1)
-	{
-
-		for(n=0;n<5;n++)
-		{
-			//check to see if redline is active
-			if (redlineTimeStart[n] <= tNow-tControl && redlineTimeEnd[n] >= tNow-tControl)
-			{
-				if (redlineMin[n] > data[redlineChannel[n]])
-				{//abort the test
-					//Servo(1, Valve1close);		//N2O Valve Closed
-					//Servo(2, Valve2close);		//Fuel Valve Closed
-					
-					//turn off relays during abort
-					Relay(1,0);					//ign relay
-					Relay(2,0);					//fuel isolation relay
-					Relay(3,0);					//N2O isolation relay
-					runningControl=0;			//abort the test
-					
-				}
-						
-			}
-		
-		}
-	}
-	*/
-	return;
-}

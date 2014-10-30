@@ -4,7 +4,6 @@
 	<comment></comment>
 	<projects>
 		<project>rocket_lpc1769_board_lib</project>
-		<project>nxp_xpresso_1769_board_lib</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

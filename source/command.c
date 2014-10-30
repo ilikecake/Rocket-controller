@@ -158,12 +158,13 @@ void CommandGetInputChar(uint8_t c)
 				{
 					command[c_pos-1] = '\0';
 					c_pos--;
-					printf ("\b \b");	//Note: '\b' by itself does not erase the character from the command line.
+					if(runningData==0) printf ("\b \b");	//Note: '\b' by itself does not erase the character from the command line.
 				}
 				break;
 			
 			case 13:	//enter
-				printf("\r\n");
+				//printf("yourmom\r\n");
+				if(runningData==0) printf("\r\n");
 				if(c_pos > 0)
 				{
 					ParseCommand();
@@ -182,7 +183,7 @@ void CommandGetInputChar(uint8_t c)
 				}
 				else
 				{
-					printf(COMMAND_PROMPT);
+					if(runningData==0) printf(COMMAND_PROMPT);
 				}
 				break;
 				
@@ -242,7 +243,7 @@ void CommandGetInputChar(uint8_t c)
 				{
 					command[c_pos] = (char) c;
 					c_pos++;
-					printf("%s", outByte);
+					if(runningData==0) printf("%s", outByte);
 				}
 		}
 	}
@@ -263,11 +264,11 @@ void RunCommand( void )
 			{
 				if(numArgs < AppCommandList[i].minArgs)
 				{
-					printf("Not enough arguments\r\r\n");
+					if(runningData==0) printf("Not enough arguments\r\r\n");
 				}
 				else if(numArgs > AppCommandList[i].maxArgs)
 				{
-					printf("Too many arguments\r\r\n");
+					if(runningData==0) printf("Too many arguments\r\r\n");
 				}
 				else
 				{
@@ -288,11 +289,11 @@ void RunCommand( void )
 			{
 				if(numArgs < CommonCommandList[i].minArgs)
 				{
-					printf("Not enough arguments\r\r\n");
+					if(runningData==0) printf("Not enough arguments\r\r\n");
 				}
 				else if(numArgs > CommonCommandList[i].maxArgs)
 				{
-					printf("Too many arguments\r\r\n");
+					if(runningData==0) printf("Too many arguments\r\r\n");
 				}
 				else
 				{
@@ -306,7 +307,7 @@ void RunCommand( void )
 			}
 		}
 			
-		printf("Invalid command. Type 'help' for command list.\r\r\n");
+		if(runningData==0) printf("Invalid command. Type 'help' for command list.\r\r\n");
 		//printf("com: %s\r\r\n", command);
 		ClearArgs();
 		ClearCommand();
@@ -357,7 +358,7 @@ static void ClearArgs(void)
 	}
 	
 	numArgs = 0;
-	printf(COMMAND_PROMPT);
+	if(runningData==0) printf(COMMAND_PROMPT);
 	return;
 }
 
