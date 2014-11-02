@@ -112,21 +112,27 @@ void ReadData(void)
 	uint32_t dataTime[2];								//store start and end time of data sample
 	uint16_t dataAnalog[AI_CHIPS*AI_CHANNELS_PER_CHIP];	//store all analog input channels
 	uint16_t dataTC[2*TC_CHIPS*TC_CHANNELS_PER_CHIP];	//store temperature and cold junction  for each TC channel
+	uint32_t averageTjunction;
 
 	//record data acquisition start time
 	dataTime[0] = xTaskGetTickCount();
 
 	//put analog channel data into buffer
-	for(chipsel=0;chipsel<AI_CHIPS;chipsel++)
+	//get analog data from chip 1
+	chipsel=1;
+	AD7606GetDataSet(chipsel, DataSet);
+	for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
 	{
-		//get analog data from chip "chipsel"
-		AD7606GetDataSet(chipsel, DataSet);
-
-		for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
-		{
-			dataAnalog[channel+chipsel*AI_CHANNELS_PER_CHIP] = DataSet[channel];
-		}
+		dataAnalog[channel+0*AI_CHANNELS_PER_CHIP] = DataSet[channel];
 	}
+	//get analog data from chip 3
+	chipsel=3;
+	AD7606GetDataSet(chipsel, DataSet);
+	for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
+	{
+		dataAnalog[channel+1*AI_CHANNELS_PER_CHIP] = DataSet[channel];
+	}
+
 
 	//get temperature and cold junction data for "channel"
 	for(channel=0;channel<TC_CHIPS;channel++)
@@ -134,7 +140,7 @@ void ReadData(void)
 		dataTC[channel]=MAX31855read(channel, &dataTC[channel+TC_CHIPS]);
 	}
 
-	//servo data is read on a seperate thread because it is slow
+	//servo data is read on a separate thread because it is slow
 
 	//record data acquisition end time
 	dataTime[1] = xTaskGetTickCount();
@@ -147,32 +153,44 @@ void ReadData(void)
 		dataSendTime[1] = dataTime[1] - fireStartTime;	//record data acquisition end time
 
 		i=0;
+
 		//put analog channel data into send buffer
-		for(chipsel=0;chipsel<AI_CHIPS;chipsel++)
+		chipsel=0;
+		for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
 		{
-			for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
-			{
-				dataSendBuffer[i] = dataAnalog[channel+chipsel*AI_CHANNELS_PER_CHIP];
-				i++;
-			}
+			dataSendBuffer[i] = dataAnalog[channel+0*AI_CHANNELS_PER_CHIP];
+			i++;
+		}
+		chipsel=2;
+		for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
+		{
+			dataSendBuffer[i] = dataAnalog[channel+1*AI_CHANNELS_PER_CHIP];
+			i++;
 		}
 
 		//update temperature data to buffer then update cold junction data to buffer
-		for(channel=0;channel<TC_CHIPS*2;channel++)
+		for(channel=0;channel<TC_CHIPS;channel++)
 		{
 			dataSendBuffer[i]=dataTC[channel];
 			i++;
 		}
 
+		//calculate and send average cold junction temperature
+		averageTjunction=0;
+		for(channel=TC_CHIPS;channel<2*TC_CHIPS;channel++)
+		{
+			averageTjunction+=dataTC[channel];
+		}
+		dataSendBuffer[i]=(uint8_t)(averageTjunction/TC_CHIPS);
+		i++;
 
 		//servo buffer will not be time consistent
 		// if we want all servo data to be from the same time we need to update buffer from servo read thread
-		for (channel=0;channel<TOTAL_SERVO_CHANNELS*2;channel++)
-		{
-			//dataSendBuffer[AI_CHIPS*AI_CHANNELS_PER_CHIP+2*TC_CHIPS*TC_CHANNELS_PER_CHIP+i] = dataServo[i];
-			i++;
-		}
-
+		//for (channel=0;channel<TOTAL_SERVO_CHANNELS*2;channel++)
+		//{
+		//	dataSendBuffer[AI_CHIPS*AI_CHANNELS_PER_CHIP+2*TC_CHIPS*TC_CHANNELS_PER_CHIP+i] = dataServo[i];
+		//	i++;
+		//}
 
 		dataSendBuffer[i]=DO_Command[commandNum];//current DO state
 		i++;
@@ -184,16 +202,8 @@ void ReadData(void)
 		dataSendBuffer[i]=dataSendBuffer[i] | (activeSaveData<<2);//bit 2: activeSaveData, saving data to flash memory
 		dataSendBuffer[i]=dataSendBuffer[i] | (redlinesEnabled<<3);//bit 3: redlinesEnabled, redlines active
 		dataSendBuffer[i]=dataSendBuffer[i] | (emergencyStop<<4);//bit 4: emergencyStop, reset Emergency stop flag
-
-/*
-		dataSendBuffer[i]=0;//bit 0: runningControl
-		dataSendBuffer[i]=dataSendBuffer[i] | (1<<1);//bit 1: runningData
-		dataSendBuffer[i]=dataSendBuffer[i] | (0<<2);//bit 2: activeSaveData, saving data to flash memory
-		dataSendBuffer[i]=dataSendBuffer[i] | (1<<3);//bit 3: redlinesEnabled, redlines active
-		dataSendBuffer[i]=dataSendBuffer[i] | (0<<4);//bit 4: emergencyStop, reset Emergency stop flag
-*/
-
 		i++;
+
 		dataSendBuffer[i]=45;//spare
 		i++;
 		dataSendBuffer[i]=46;//spare
@@ -304,11 +314,12 @@ void SendData(void)
 		sendSerialUInt32(dataSendTime[0],DEBUG_UART);//send data acquisition start time
 		sendSerialUInt32(dataSendTime[1],DEBUG_UART);//send data acquisition end time
 
-		for(channel=0;channel<AI_CHIPS*AI_CHANNELS_PER_CHIP+2*TC_CHIPS*TC_CHANNELS_PER_CHIP+TOTAL_SERVO_CHANNELS*2+4;channel++)
+		//for(channel=0;channel<AI_CHIPS*AI_CHANNELS_PER_CHIP+2*TC_CHIPS*TC_CHANNELS_PER_CHIP+TOTAL_SERVO_CHANNELS*2+4;channel++)
+		for(channel=0;channel<2*AI_CHANNELS_PER_CHIP+TC_CHIPS*TC_CHANNELS_PER_CHIP+1+TOTAL_SERVO_CHANNELS*2+4;channel++)
 		{
 			sendSerialUInt16(dataSendBuffer[channel],DEBUG_UART);
+			//sendSerialUInt16((uint16_t)channel,DEBUG_UART);
 		}
-
 
 		//give data buffer semaphore
 		xSemaphoreGive(dataSemaphore);

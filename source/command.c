@@ -163,7 +163,6 @@ void CommandGetInputChar(uint8_t c)
 				break;
 			
 			case 13:	//enter
-				//printf("yourmom\r\n");
 				if(runningData==0) printf("\r\n");
 				if(c_pos > 0)
 				{

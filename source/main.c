@@ -120,6 +120,8 @@ static void prvSetupHardware(void)
 
 	i2c_app_init(I2C1, SPEED_100KHZ);//SPEED_400KHZ
 
+	XRA1402Init();
+
 	//Initalize I2C
 	//i2c_app_init(I2C0, SPEED_100KHZ);//SPEED_400KHZ
 
@@ -128,6 +130,9 @@ static void prvSetupHardware(void)
 
 	//AD5666Init();//set up Analog Output chip
 	AD7606Init();//set up Analog Input chip
+
+
+
 	//MAX31855Init();//set up thermocouple chip
 
 	/* Initial LED0 state is off */

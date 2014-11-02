@@ -137,7 +137,7 @@ const CommandListItem AppCommandList[] =
 	{ _F8_NAME, 	1,  1,	_F8_Handler,	_F8_DESCRIPTION,	_F8_HELPTEXT	},		//fire: start test sequence
 	{ _F9_NAME,		1,  1,	_F9_Handler,	_F9_DESCRIPTION,	_F9_HELPTEXT	},		//setupdac: Send commands to DAC chip
 	{ _F10_NAME,	1,  1,	_F10_Handler,	_F10_DESCRIPTION,	_F10_HELPTEXT	},		//setupadc: Send commands to ADC chip
-	{ _F11_NAME,	0,  0,	_F11_Handler,	_F11_DESCRIPTION,	_F11_HELPTEXT	},		//setuptc: Send commands to TC chip
+	{ _F11_NAME,	0,  2,	_F11_Handler,	_F11_DESCRIPTION,	_F11_HELPTEXT	},		//setuptc: Send commands to TC chip
 	{ _F12_NAME,	0,  0,	_F12_Handler,	_F12_DESCRIPTION,	_F12_HELPTEXT	},		//i2cscan
 	{ _F13_NAME,	1,  1,	_F13_Handler,	_F13_DESCRIPTION,	_F13_HELPTEXT	},		//datastart: enables or disables data read and data send
 	/*	{ _F13_NAME,	1,  3,	_F13_Handler,	_F13_DESCRIPTION,	_F13_HELPTEXT	},		//twiscan
@@ -188,7 +188,7 @@ static int _F2_Handler (void)
 	return 0;
 }
 
-//read Analog Inputs
+//getai: read Analog Inputs
 static int _F3_Handler (void)
 {
 
@@ -198,17 +198,23 @@ static int _F3_Handler (void)
 
 
 	//read analog channel data
-	for(chipNumber=0;chipNumber<AI_CHIPS;chipNumber++)
-	{
+	//for(chipNumber=1;chipNumber<=AI_CHIPS;chipNumber++)
+	//{
 		//get analog data from chip "chipNumber"
-		AD7606GetDataSet(chipNumber, DataSet);
-
+		AD7606GetDataSet(1, DataSet);
 		for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
 		{
-		 printf("ADC[%u]: %d counts\r\n", channel, DataSet[channel]);
-		 //analogBuffer[channel] = DataSet[channel-chipNumber*AI_CHANNELS_PER_CHIP];
+		 printf("ADC1[%u]: %d counts\r\n", channel, DataSet[channel]);
 		}
-	}
+
+		//get analog data from chip "chipNumber"
+		AD7606GetDataSet(3, DataSet);
+		for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
+		{
+		 printf("ADC3[%u]: %d counts\r\n", channel, DataSet[channel]);
+		}
+
+	//}
 
 
 	/*
@@ -229,7 +235,7 @@ static int _F3_Handler (void)
 	return 0;
 }
 
-//read Temperatures
+//getTC: read Temperatures
 static int _F4_Handler (void)
 {
 	uint8_t sel;
@@ -238,7 +244,7 @@ static int _F4_Handler (void)
 	//float temp;
 	//float tempCold;
 
-	for(sel=0;sel<4;sel++)
+	for(sel=0;sel<8;sel++)
 	{
 		temperature=MAX31855read(sel, &coldJunction);
 		printf("TC%u: %u, %u \r\n",sel,temperature,coldJunction);
@@ -547,7 +553,36 @@ static int _F10_Handler (void)
 //setuptc: Send commands to TC chip
 static int _F11_Handler (void)
 {
+	uint8_t Val1;
+	uint8_t Val2;
 
+	Val1 = argAsInt(1);
+
+	if(NumberOfArguments() == 1)
+	{
+		if(Val1 == 0xF1)
+		{
+			printf("Select\r\n");
+			XRA1402Select(1);
+		}
+		else if (Val1 == 0xF0)
+		{
+			printf("Deselect\r\n");
+			XRA1402Select(0);
+		}
+		else
+		{
+			XRA1402ReadReg((Val1<<1), &Val2);
+			printf("Register 0x%02X: 0x%02X\r\n", Val1, Val2);
+		}
+	}
+	if(NumberOfArguments() == 2)
+	{
+		Val2 = argAsInt(2);
+		printf("Writing 0x%02X to register 0x%02X...", Val2, Val1);
+		XRA1402WriteReg((Val1<<1), Val2);
+		printf("Done\r\n");
+	}
 
 	return 0;
 }

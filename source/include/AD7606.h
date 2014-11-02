@@ -103,7 +103,7 @@
 
 void AD7606Init(void);
 
- void AD7606SetOSMode(uint8_t chipNumber, uint8_t OSModeToSet);
+void AD7606SetOSMode(uint8_t chipNumber, uint8_t OSModeToSet);
 void AD7606Reset(uint8_t chipNumber);
 void AD7606SetPowerMode(uint8_t chipNumber, uint8_t PowerModeToSet);
 void AD7606SetRange(uint8_t chipNumber, uint8_t RangeToSet);

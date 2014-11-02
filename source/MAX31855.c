@@ -54,43 +54,17 @@ void MAX31855Init(void)
 }
 
 
-//sel = 1 to select the chip
+//sel = 0-7 to select a chip, anything else deselects all chips
 void MAX31855Select( uint8_t sel )
 {
-
-	/*Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS1_PIN, true);				//chip is deselected
-	Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS2_PIN, true);				//chip is deselected
-	Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS3_PIN, true);				//chip is deselected
-	Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS4_PIN, true);				//chip is deselected
-
-	switch (sel)
-		{
-	case 0:
-		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS1_PIN, false);	//chip is selected
-		break;
-	case 1:
-		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS2_PIN, false);	//chip is selected
-		break;
-	case 2:
-		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS3_PIN, false);	//chip is selected
-		break;
-	case 3:
-		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS4_PIN, false);	//chip is selected
-		break;
-		
-	case 4://TODO move these chip select pins to the new chips
-		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS1_PIN, false);	//chip is selected
-		break;
-	case 5:
-		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS2_PIN, false);	//chip is selected
-		break;
-	case 6:
-		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS3_PIN, false);	//chip is selected
-		break;
-	case 7:
-		Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS4_PIN, false);	//chip is selected
-		break;
-		}*/
+	if(sel < 8)
+	{
+		XRA1402WriteReg(XRA1402_REG_OCR, ~(1<<sel));
+	}
+	else
+	{
+		XRA1402WriteReg(XRA1402_REG_OCR, 0xFF);
+	}
 
 	return;
 }

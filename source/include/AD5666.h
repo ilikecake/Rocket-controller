@@ -10,12 +10,12 @@
 
 #include <stdint.h>
 
-#define AD5666_CS_PORT			0
-#define AD5666_CS_PIN			15
-#define AD5666_UPDATE_PORT		0
-#define AD5666_UPDATE_PIN		16
+#define AD5666_CS_PORT			2
+#define AD5666_CS_PIN			8
+#define AD5666_UPDATE_PORT		2
+#define AD5666_UPDATE_PIN		7
 #define AD5666_CLEAR_PORT		2
-#define AD5666_CLEAR_PIN		8
+#define AD5666_CLEAR_PIN		6
 
 #define AD5666_CMD_WRITE_REG				0x00
 #define AD5666_CMD_UPDATE_REG				0x01
