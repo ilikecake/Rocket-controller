@@ -128,12 +128,12 @@ const char _F13_HELPTEXT[] PROGMEM 		= "mem <1> <2> <3>";
 const CommandListItem AppCommandList[] =
 {
 	{ _F1_NAME,		1,  2,	_F1_Handler,	_F1_DESCRIPTION,	_F1_HELPTEXT	},		//setdo: Set Digital Output Channel
-	{ _F2_NAME,		1,  2,	_F2_Handler,	_F2_DESCRIPTION,	_F2_HELPTEXT	},		//Set servo position
+	{ _F2_NAME,		1,  2,	_F2_Handler,	_F2_DESCRIPTION,	_F2_HELPTEXT	},		//setservo: Set servo position
 	{ _F3_NAME, 	0,  0,	_F3_Handler,	_F3_DESCRIPTION,	_F3_HELPTEXT	},		//getai: read Analog data
-	{ _F4_NAME, 	0,  0,	_F4_Handler,	_F4_DESCRIPTION,	_F4_HELPTEXT	},		//getTC: read TC data
+	{ _F4_NAME, 	0,  1,	_F4_Handler,	_F4_DESCRIPTION,	_F4_HELPTEXT	},		//getTC: read TC data
 	{ _F5_NAME, 	0,  3+TOTAL_SERVO_CHANNELS,	_F5_Handler,	_F5_DESCRIPTION,	_F5_HELPTEXT	},		//sequence: Set Command Sequence
 	{ _F6_NAME, 	0,  6,	_F6_Handler,	_F6_DESCRIPTION,	_F6_HELPTEXT	},		//setred: Set Redlines
-	{ _F7_NAME, 	0,  0,	_F7_Handler,	_F7_DESCRIPTION,	_F7_HELPTEXT	},		//Read Time
+	{ _F7_NAME, 	0,  0,	_F7_Handler,	_F7_DESCRIPTION,	_F7_HELPTEXT	},		//gettime: Read Time
 	{ _F8_NAME, 	1,  1,	_F8_Handler,	_F8_DESCRIPTION,	_F8_HELPTEXT	},		//fire: start test sequence
 	{ _F9_NAME,		1,  1,	_F9_Handler,	_F9_DESCRIPTION,	_F9_HELPTEXT	},		//setupdac: Send commands to DAC chip
 	{ _F10_NAME,	1,  1,	_F10_Handler,	_F10_DESCRIPTION,	_F10_HELPTEXT	},		//setupadc: Send commands to ADC chip
@@ -149,11 +149,38 @@ const CommandListItem AppCommandList[] =
 //setdo:	Digital Output control function
 static int _F1_Handler (void)
 {
-	uint8_t n;
+	//uint8_t n;
 
+	uint8_t Reg;
+	uint8_t RegData;
+	//uint8_t FakeOutputData[2];
+
+	Reg = argAsInt(1);
 	//argAsInt(1) is Digital Output channel
 	//argAsInt(2) is state of valve
-	if(NumberOfArguments() == 2)
+
+	if(NumberOfArguments() == 1)
+	{
+		printf("Read Register 0x%02X: ", Reg);
+		PCA9535_ReadReg(Reg, 1, &RegData);
+		printf("0x%02X\r\n", RegData);
+	}
+	else if(NumberOfArguments() == 2)
+	{
+		RegData = argAsInt(2);
+
+		PCA9535_SetOutput(Reg, RegData);
+
+		/*FakeOutputData[0] = Reg;
+		FakeOutputData[1] = argAsInt(2);
+
+		printf("Setting output state to 0x%02X%02X...", FakeOutputData[0], FakeOutputData[1]);
+		PCA9535_SetOutputs(FakeOutputData);
+		printf("Done!\r\n");*/
+	}
+
+
+	/*if(NumberOfArguments() == 2)
 	{
 		Board_DO_Set(argAsInt(1), argAsInt(2));
 	}
@@ -165,26 +192,88 @@ static int _F1_Handler (void)
 			Board_DO_Set(n, 0);
 		}
 
-	}
+	}*/
 	return 0;
 }
 
-//Servo Valve Control Function
+//setservo: Servo Valve Control Function
 static int _F2_Handler (void)
 {
+	//uint16_t pos;
+	uint8_t pos;
+	uint16_t arg2;
+	uint16_t state;
+
+	pos = argAsInt(1);
+
+	if(NumberOfArguments() == 2)
+	{
+		arg2 = argAsInt(2);
+
+		switch (pos)
+		{
+			case 1:
+				printf("Set servo position\r\n");
+				MX106T_Set16bit(1, SERVO_GOAL_POSITION_16, arg2);
+				break;
+
+			case 2:
+				printf("Set LED to %d...\r\n", (uint8_t)arg2);
+				MX106T_Set8bit(1, SERVO_LED_8, (uint8_t)arg2);
+				printf("Done!\r\n");
+				break;
+
+			case 3:
+				printf("Servo Temperature: %u\r\n", MX106T_Read8bit(1, SERVO_PRESENT_TEMPERATURE_8));
+				//printf("Servo Temperature: %u\r\n", MX106T_Read8bit(1, SERVO_PRESENT_TEMPERATURE_8));
+
+				//printf("Servo ID: %u\r\n", MX106T_Read8bit(1, SERVO_ID_8));
+				//printf("Servo Baud: %u\r\n", MX106T_Read8bit(1, SERVO_BAUD_RATE_8));
+				break;
+
+			case 4:
+				printf("Get servo position \r\n");
+				state = MX106T_Read16bit(1, SERVO_PRESENT_POSITION_16);
+				printf("Servo position: %u\r\n", state);
+
+				//printf("Set baud rate to 34...\r\n");
+				//MX106T_Set8bit(1, SERVO_ID_8, 1);
+				//MX106T_Set8bit(1, SERVO_BAUD_RATE_8, 34);
+
+				break;
+
+			case 5:
+				printf("Read servo data \r\n");
+				state = MX106T_Read16bit(1, (uint8_t) arg2);
+				printf("Servo data: %u\r\n", state);
+
+				break;
+		}
+	}
+
+
+
+
+
+	//printf("Set position to %d...", pos);
+	//MX106T_Set16bit(1, SERVO_GOAL_POSITION_16, pos);
+	//printf("Done!\r\n");
 
 	//argAsInt(1) is Digital Output channel
 	//argAsInt(2) is state of valve
-	if(NumberOfArguments() == 2)
-	{
+	//if(NumberOfArguments() == 2)
+	//{
+
+
+
 		//Board_DO_Set(argAsInt(1), argAsInt(2));
-	}
-	else
-	{
+	//}
+	//else
+	///{
 		//Turn off all valves
 
 
-	}
+	//}
 	return 0;
 }
 
@@ -193,10 +282,11 @@ static int _F3_Handler (void)
 {
 
 	uint8_t channel;
-	uint8_t chipNumber;
+	//uint8_t i;
+	//uint8_t chipNumber;
 	uint16_t DataSet[8];
 
-
+	//AD7606_Select(1,0);
 	//read analog channel data
 	//for(chipNumber=1;chipNumber<=AI_CHIPS;chipNumber++)
 	//{
@@ -217,7 +307,7 @@ static int _F3_Handler (void)
 	//}
 
 
-	/*
+/*
 	portTickType tickTime;
 	portTickType interval;
 	//interval=configTICK_RATE_HZ/100;//Set frequency to 100 loops per second
@@ -226,11 +316,28 @@ static int _F3_Handler (void)
 	while (1)
 	{
 		tickTime = xTaskGetTickCount();
-		ReadData();
-		SendData();
-		vTaskDelayUntil(&tickTime,interval);
-	}*/
 
+		//get analog data from chip "chipNumber"
+		/ReadData();
+		//SendData();
+
+		//get analog data from chip "chipNumber"
+		AD7606GetDataSet(1, DataSet);
+		for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
+		{
+		 printf("ADC1[%u]: %d counts\r\n", channel, DataSet[channel]);
+		}
+
+		AD7606GetDataSet(3, DataSet);
+		for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
+		{
+		 printf("ADC3[%u]: %d counts\r\n", channel, DataSet[channel]);
+		}
+
+
+		vTaskDelayUntil(&tickTime,interval);
+	}
+*/
 
 	return 0;
 }
@@ -239,22 +346,28 @@ static int _F3_Handler (void)
 static int _F4_Handler (void)
 {
 	uint8_t sel;
-	uint16_t coldJunction;
 	uint16_t temperature;
+	uint16_t coldJunction;
 	//float temp;
 	//float tempCold;
 
-	for(sel=0;sel<8;sel++)
+	if(NumberOfArguments() == 1)
 	{
-		temperature=MAX31855read(sel, &coldJunction);
-		printf("TC%u: %u, %u \r\n",sel,temperature,coldJunction);
-
-		//temp = ((float)temperature)*.25;
-		//tempCold=((float)coldJunction)*.0625;
-		//printf("TC%u: %s, %s \r\n",sel,temp,tempCold);
-
+		MAX31855Select(argAsInt(1));
+		printf("TC chip #%u selected\r\n",argAsInt(1));
 	}
+	else
+	{
+		for(sel=0;sel<8;sel++)
+		{
+			temperature=MAX31855read(sel, &coldJunction);
+			printf("TC%u: %u, %u \r\n",sel,temperature,coldJunction);
 
+			//temp = ((float)temperature)*.25;
+			//tempCold=((float)coldJunction)*.0625;
+			//printf("TC%u: %s, %s \r\n",sel,temp,tempCold);
+		}
+	}
 	return 0;
 }
 
@@ -366,6 +479,7 @@ static int _F6_Handler (void)
 	return 0;
 }
 
+//gettime
 static int _F7_Handler (void)
 {
 	printf("Chip Status:\r\n");
@@ -416,10 +530,6 @@ static int _F8_Handler (void)
 static int _F9_Handler (void)
 {
 	//send commands to the Analog Output chip
-
-	//uint8_t command2 = argAsInt(2);
-	//uint8_t SendBuffer[4];
-
 	uint8_t CommandNumber = argAsInt(1);
 	uint16_t DACValue = argAsInt(2);
 
@@ -428,7 +538,6 @@ static int _F9_Handler (void)
 		printf("Set DAC %u to 0x%04X\r\n", CommandNumber, DACValue);
 		AD5666SetVoltage(CommandNumber, DACValue);
 	}
-
 	else
 	{
 		switch(CommandNumber)
@@ -450,7 +559,6 @@ static int _F9_Handler (void)
 			printf("Clear %u\r\n", DACValue);
 			AD5666Clear((uint8_t)DACValue);
 			break;
-
 		}
 	}
 
@@ -614,21 +722,8 @@ static int _F13_Handler (void)
 	portTickType interval;
 	uint8_t g = 0;
 
-	if (argAsInt(1)==1)
-	{
-		runningData = 1;
-		vTaskResume(vDataAquisitionTaskHandle);//make sure data is being acquired
-		//vTaskResume(vServoReadTask);//make sure data is being acquired
-		//vTaskResume(vDataSendTask);//make sure data is being acquired
-	}
-	else if (argAsInt(1)==0)
-	{
-		vTaskSuspend(vDataAquisitionTaskHandle);//make sure data is being acquired
-		runningData = 0;
-		//vTaskSuspend(vServoReadTask);//make sure data is being acquired
-		//vTaskSuspend(vDataSendTask);//make sure data is being acquired
-	}
-	else if (argAsInt(1)==3)
+
+	if (argAsInt(1)>100)
 	{
 		//vTaskResume(vDataAquisitionTaskHandle);//make sure data is being acquired
 		//vTaskResume(vServoReadTask);//make sure data is being acquired
@@ -656,7 +751,21 @@ static int _F13_Handler (void)
 	62	Hz max
 	 */
 	}
-
+	else if (argAsInt(1)>0)
+	{
+		dataRate = argAsInt(1);
+		runningData = 1;
+		vTaskResume(vDataAquisitionTaskHandle);//make sure data is being acquired
+		//vTaskResume(vServoReadTask);//make sure data is being acquired
+		//vTaskResume(vDataSendTask);//make sure data is being acquired
+	}
+	else //if (argAsInt(1)==0)
+	{
+		vTaskSuspend(vDataAquisitionTaskHandle);//make sure data is being acquired
+		runningData = 0;
+		//vTaskSuspend(vServoReadTask);//make sure data is being acquired
+		//vTaskSuspend(vDataSendTask);//make sure data is being acquired
+	}
 	return 0;
 }
 

@@ -37,8 +37,6 @@
 #define MAX31855_CS7_PIN		1
 #define MAX31855_CS8_PIN		0
 
-
-void MAX31855Init(void);
 void MAX31855Select( uint8_t sel );
 
 uint16_t MAX31855read( uint8_t sel, uint16_t *coldJunction );

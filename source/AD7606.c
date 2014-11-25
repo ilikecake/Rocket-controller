@@ -79,6 +79,10 @@ void AD7606Init(void)
 	AD7606SetRange(3,AD7606_RANGE_5V);
 	AD7606Reset(3);
 
+	AD7606_Select(1,0);
+	//AD7606_Select(2,0);
+	AD7606_Select(3,0);
+
 	ADC_Status = AD7606_STATUS_READY;
 
 	return;
@@ -323,6 +327,7 @@ void AD7606GetDataSet(uint8_t chipNumber, uint16_t* DataSet)
 	for(i=0; i<8; i++)
 	{
 		DataSet[i] = ((ADInputData[i*2]<<8) + ADInputData[i*2+1]);
+		//DataSet[i] = chipNumber*1000+i*10;
 	}
 
 	//for(i=0; i<16; i++)

@@ -61,9 +61,13 @@
 #define SERVO_GOAL_ACCELERATION_8	0X49
 
 #define SERVO_DEADBAND	8	//milliseconds it takes to finish processing servo requests
-#define SERVO_UART LPC_UART0
+//#define SERVO_UART LPC_UART0
 
-void MX106T_Send(uint8_t *parameters, uint8_t outLength, uint8_t *inputBuffer, uint8_t inLength);
+void MX106T_Init(void);
+
+void MX106T_SetState(uint8_t State);	//1 to transmit, 0 to recieve
+
+uint8_t MX106T_Send(uint8_t *parameters, uint8_t outLength, uint8_t *inputBuffer, uint8_t inLength);
 
 //allow servo to rotate freely
 void MX106T_SetWheelMode(uint8_t servoIDl);

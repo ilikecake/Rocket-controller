@@ -59,8 +59,20 @@ extern "C" {
 
 #define BOARD_NXP_XPRESSO_1769	/*!< Build for Xpresso LPC1769 board */
 
-#define TOTAL_DO_CHANNELS		16
-#define TOTAL_SERVO_CHANNELS	2
+#define LED0_GPIO_PORT_NUM                      1
+#define LED0_GPIO_BIT_NUM                       9
+#define LED1_GPIO_PORT_NUM                      1
+#define LED1_GPIO_BIT_NUM                       10
+#define LED2_GPIO_PORT_NUM                      1
+#define LED2_GPIO_BIT_NUM                       14
+
+#define XBEE_GPIO_PORT_NUM						1
+#define XBEE_GPIO_BIT_NUM						31
+#define USB_GPIO_PORT_NUM						1
+#define USB_GPIO_BIT_NUM						19
+
+#define TOTAL_DO_CHANNELS				16
+#define TOTAL_SERVO_CHANNELS			2
 #define AI_CHIPS						2
 #define AI_CHANNELS_PER_CHIP			8
 #define TC_CHIPS						8
@@ -83,7 +95,9 @@ void sendSerialNewline(char num, LPC_USART_T *pUART);
 
 void UART_RTSConfig(LPC_USART_T *pUART, uint8_t RTSState);
 
-void Board_DO_Set(uint8_t channel, bool state);
+void Board_DO_Set(uint16_t DOstates);
+
+void Board_Xbee_Set(bool state);
 
 /**
  * @brief	Initialize pin muxing for a UART

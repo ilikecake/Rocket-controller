@@ -70,8 +70,8 @@ void XRA1402ReadReg(uint8_t RegisterToRead, uint8_t *RegVal)
 {
 	Chip_SSP_DATA_SETUP_T xf_setup;
 	SSP_ConfigFormat ssp_format;
-	uint8_t DataToSend[2];
-	uint8_t DataRXBuffer[2];	//TODO: This is dumb, remove this later
+	uint8_t DataToSend[4];
+	uint8_t DataRXBuffer[4];	//TODO: This is dumb, remove this later
 
 	//Set up the SSP format mode 00
 	ssp_format.frameFormat = SSP_FRAMEFORMAT_SPI;
@@ -80,14 +80,19 @@ void XRA1402ReadReg(uint8_t RegisterToRead, uint8_t *RegVal)
 	Chip_SSP_SetFormat(LPC_SSP1, &ssp_format);
 
 	DataToSend[0] = ((RegisterToRead) & 0x7E) | 0x80;
-	DataToSend[1] = 0x00;
+	DataToSend[1] = ((RegisterToRead) & 0x7E) | 0x80;
+	DataToSend[2] = ((RegisterToRead) & 0x7E) | 0x80;
+	DataToSend[3] = ((RegisterToRead) & 0x7E) | 0x80;
+	//DataToSend[1] = 0x00;
 
 	DataRXBuffer[0] = 0xFA;
 	DataRXBuffer[1] = 0xAF;
+	DataRXBuffer[2] = 0xFA;
+	DataRXBuffer[3] = 0xAF;
 
 	printf("TX: 0x%02X, 0x%02X\r\n", DataToSend[0], DataToSend[1]);
 
-	xf_setup.length = 2;
+	xf_setup.length = 4;
 	xf_setup.tx_data = DataToSend;
 	xf_setup.rx_data = DataRXBuffer;
 	xf_setup.rx_cnt = xf_setup.tx_cnt = 0;
@@ -101,7 +106,7 @@ void XRA1402ReadReg(uint8_t RegisterToRead, uint8_t *RegVal)
 	//Deselect
 	XRA1402Select(0);
 
-	printf("RX: 0x%02X, 0x%02X\r\n", DataRXBuffer[0], DataRXBuffer[1]);
+	printf("RX: 0x%02X 0x%02X 0x%02X 0x%02X\r\n", DataRXBuffer[0], DataRXBuffer[1], DataRXBuffer[2], DataRXBuffer[3]);
 
 	RegVal = &DataRXBuffer[1];
 	return;
@@ -109,7 +114,7 @@ void XRA1402ReadReg(uint8_t RegisterToRead, uint8_t *RegVal)
 
 void XRA1402SetupOutput(uint8_t BitsToSet)
 {
-	uint8_t RegVal;
+	//uint8_t RegVal;
 
 	//XRA1402ReadReg(XRA1402_REG_GCR, &RegVal);
 

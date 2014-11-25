@@ -23,35 +23,9 @@
 *	@{
 */
 
-/*#include "MAX31855.h"
-#include "avr/io.h"
-#include "spi.h"*/
+
 
 #include "main.h"
-
-void MAX31855Init(void)
-{
-	
-	//Set up pins
-	/*Chip_IOCON_PinMux(LPC_IOCON, MAX31855_CS_PORT, MAX31855_CS1_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
-	Chip_IOCON_PinMux(LPC_IOCON, MAX31855_CS_PORT, MAX31855_CS2_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
-	Chip_IOCON_PinMux(LPC_IOCON, MAX31855_CS_PORT, MAX31855_CS3_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
-	Chip_IOCON_PinMux(LPC_IOCON, MAX31855_CS_PORT, MAX31855_CS4_PIN, IOCON_MODE_INACT, IOCON_FUNC0);
-
-	//Setup pins as output
-	Chip_GPIO_WriteDirBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS1_PIN, true);
-	Chip_GPIO_WriteDirBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS2_PIN, true);
-	Chip_GPIO_WriteDirBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS3_PIN, true);
-	Chip_GPIO_WriteDirBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS4_PIN, true);
-
-	//Set these pins high
-	Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS1_PIN, true);				//chip is deselected
-	Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS2_PIN, true);				//chip is deselected
-	Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS3_PIN, true);				//chip is deselected
-	Chip_GPIO_WritePortBit(LPC_GPIO, MAX31855_CS_PORT, MAX31855_CS4_PIN, true);				//chip is deselected*/
-
-	return;
-}
 
 
 //sel = 0-7 to select a chip, anything else deselects all chips
@@ -100,10 +74,25 @@ uint16_t MAX31855read( uint8_t sel, uint16_t *coldJunction )
 
 	MAX31855Select (0xFF);//deselect all TC chips
 	
-
 	temperature = ((uint16_t)ReceiveBuffer[0] << 6) | ((uint16_t)ReceiveBuffer[1] >> 2);//.25deg C per bit starting at 0C
 	*coldJunction = ((uint16_t)ReceiveBuffer[2]<<4) | ((uint16_t)ReceiveBuffer[3]>>4);//.0625deg C per bit starting at 0C
-	
+
+
+	//MAX318555 has temp start at zero then go up, but below zero it starts at 0x3FFF and count back down
+	//shift positive temperatures to read  0x3FFF at 0C.
+	if (temperature < 0x3FFF) //((temperature >> 13) != 1)
+	{//temperature is greater than 0C
+		temperature = temperature + 0x4000;//
+	}
+
+	//MAX318555 has coldJunction temp start at zero then go up, but below zero it starts at 0xFFF and count back down
+	//shift positive temperatures to read  0xFFF at 0C.
+	if (*coldJunction < 0xFFF) //((coldJunction >>11) != 1)
+	{//coldJunction is greater than 0C
+		*coldJunction = *coldJunction + 0x1000;//
+	}
+
+
 	//printf("%u %u %u %u\r\n",ReceiveBuffer[0],ReceiveBuffer[1],ReceiveBuffer[2],ReceiveBuffer[3]);
 	err = (ReceiveBuffer[3] & 0x1);
 

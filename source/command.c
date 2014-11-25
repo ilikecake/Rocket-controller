@@ -182,7 +182,7 @@ void CommandGetInputChar(uint8_t c)
 				}
 				else
 				{
-					if(runningData==0) printf(COMMAND_PROMPT);
+					//if(runningData==0) printf(COMMAND_PROMPT);
 				}
 				break;
 				
@@ -357,7 +357,7 @@ static void ClearArgs(void)
 	}
 	
 	numArgs = 0;
-	if(runningData==0) printf(COMMAND_PROMPT);
+	//if(runningData==0) printf(COMMAND_PROMPT);
 	return;
 }
 

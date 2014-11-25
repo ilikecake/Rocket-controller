@@ -40,6 +40,7 @@
 //char trigger;
 unsigned int commandNum;
 unsigned int commandMax;
+unsigned int dataRate; //rate of data aquisition in Hz
 unsigned int commandTime[MAX_COMMANDS];					//time that action will occur
 uint16_t DO_Command[MAX_COMMANDS];		//state of digital.  DO0 is LSB, DO16 is MSB
 uint16_t Servo_Command[MAX_COMMANDS][TOTAL_SERVO_CHANNELS];	//state of propellant valve at commandTime

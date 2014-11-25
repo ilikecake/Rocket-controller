@@ -27,6 +27,7 @@
 #include "at45db321d.h" //flash memory driver
 
 #include "XRA1402.h"
+#include "PCA9535.h"
 
 
 void vEStopTask(void * pvParameters );
@@ -39,6 +40,10 @@ void vDataSendTask(void * pvParameters );
 
 void vRunCommandTask(void * pvParameters );
 void vUARTTask(void * pvParameters );
+
+
+
+
 
 
 xTaskHandle vEStopTaskHandle;

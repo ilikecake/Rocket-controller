@@ -54,12 +54,7 @@
 #define JOYSTICK_RIGHT_GPIO_BIT_NUM             16
 #define JOYSTICK_PRESS_GPIO_PORT_NUM            0
 #define JOYSTICK_PRESS_GPIO_BIT_NUM             17
-#define LED0_GPIO_PORT_NUM                      1
-#define LED0_GPIO_BIT_NUM                       9
-#define LED1_GPIO_PORT_NUM                      1
-#define LED1_GPIO_BIT_NUM                       10
-#define LED2_GPIO_PORT_NUM                      1
-#define LED2_GPIO_BIT_NUM                       14
+
 
 //#define LED3_GPIO_PORT_NUM                      1
 //#define LED3_GPIO_BIT_NUM                       29
@@ -93,30 +88,21 @@ static void Board_LED_Init(void)
 /* Sets the state of a board LED to on or off
  * Note: a high level on the pin turns off the LED
  * Note: LED numbers start at 1						*/
-void Board_DO_Set(uint8_t channel, bool state)
+void Board_DO_Set(uint16_t DOstates)
 {
+	uint8_t states[1];
 
-	if (channel == 0)
-	{
-		Chip_GPIO_WritePortBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, !state);
-	}
-	else if(channel == 1)
-	{
-		Chip_GPIO_WritePortBit(LPC_GPIO, LED1_GPIO_PORT_NUM, LED1_GPIO_BIT_NUM, !state);
-	}
-	else if(channel == 2)
-	{
-		Chip_GPIO_WritePortBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, !state);
-	}
-	else
-	{
-		Chip_GPIO_WritePortBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, !state);
-
-	}
+	states[0] = (uint8_t) (DOstates>>8);
+	states[1] = (uint8_t) (DOstates & 0xFF);
+	PCA9535_SetOutputs(states);
 
 	return;
 }
 
+void Board_Xbee_Set(bool state)
+{
+	Chip_GPIO_WritePortBit(LPC_GPIO, XBEE_GPIO_PORT_NUM, XBEE_GPIO_BIT_NUM, state);
+}
 /*****************************************************************************
  * Public functions
  ****************************************************************************/
@@ -152,7 +138,6 @@ void sendSerialUint8(uint8_t msg, LPC_USART_T *pUART) {
 
 //send NewLine over UART
 void sendSerialNewline(char num, LPC_USART_T *pUART){
-
     signed char i;
 
     for (i = 0; i < num; i++){
@@ -184,7 +169,7 @@ void Board_Debug_Init(void)
 
 	/* Setup UART for 115.2K8N1 */
 	Chip_UART_Init(DEBUG_UART);
-	Chip_UART_SetBaud(DEBUG_UART, 230400);
+	Chip_UART_SetBaud(DEBUG_UART, 230400);// 115200);//
 	Chip_UART_ConfigData(DEBUG_UART, UART_DATABIT_8, UART_PARITY_NONE, UART_STOPBIT_1);
 
 	/* Enable UART Transmit */
@@ -289,6 +274,16 @@ void Board_Init(void)
 	Chip_GPIO_Init(LPC_GPIO);
 	Chip_IOCON_Init(LPC_IOCON);
 
+	//Initialize Xbee radio enable pin
+	Chip_GPIO_WriteDirBit(LPC_GPIO, XBEE_GPIO_PORT_NUM, XBEE_GPIO_BIT_NUM, true);
+
+	//initialize USB detect pin
+	Chip_GPIO_WriteDirBit(LPC_GPIO, USB_GPIO_PORT_NUM, USB_GPIO_BIT_NUM, false);
+	Chip_IOCON_PinMux(LPC_IOCON, USB_GPIO_PORT_NUM, USB_GPIO_BIT_NUM, IOCON_MODE_PULLUP, IOCON_FUNC0);
+
+
+
+
 	/* Initialize LEDs */
 	Board_LED_Init();
 }
@@ -390,6 +385,12 @@ void Board_I2C_Init(I2C_ID_T id)
 		Chip_IOCON_PinMux(LPC_IOCON, 0, 20, IOCON_MODE_INACT, IOCON_FUNC3);
 		Chip_IOCON_EnableOD(LPC_IOCON, 0, 19);
 		Chip_IOCON_EnableOD(LPC_IOCON, 0, 20);
+
+		//Chip_IOCON_PinMux(LPC_IOCON, 0, 0, IOCON_MODE_INACT, IOCON_FUNC3);
+		//Chip_IOCON_PinMux(LPC_IOCON, 0, 1, IOCON_MODE_INACT, IOCON_FUNC3);
+		//Chip_IOCON_EnableOD(LPC_IOCON, 0, 0);
+		//Chip_IOCON_EnableOD(LPC_IOCON, 0, 1);
+
 		break;
 
 	case I2C2:
@@ -403,67 +404,6 @@ void Board_I2C_Init(I2C_ID_T id)
 	return;
 }
 
-/*
-void Board_Buttons_Init(void)
-{
-	Chip_GPIO_WriteDirBit(LPC_GPIO, BUTTONS_BUTTON1_GPIO_PORT_NUM, BUTTONS_BUTTON1_GPIO_BIT_NUM, false);
-}
-
-uint32_t Buttons_GetStatus(void)
-{
-	uint8_t ret = NO_BUTTON_PRESSED;
-	if (Chip_GPIO_ReadPortBit(LPC_GPIO, BUTTONS_BUTTON1_GPIO_PORT_NUM, BUTTONS_BUTTON1_GPIO_BIT_NUM) == 0x00) {
-		ret |= BUTTONS_BUTTON1;
-	}
-	return ret;
-}
-
-void Board_Joystick_Init(void)
-{
-	Chip_IOCON_PinMux(LPC_IOCON, JOYSTICK_UP_GPIO_PORT_NUM, JOYSTICK_UP_GPIO_BIT_NUM, IOCON_MODE_INACT, IOCON_FUNC0);
-	Chip_IOCON_PinMux(LPC_IOCON, JOYSTICK_DOWN_GPIO_PORT_NUM, JOYSTICK_DOWN_GPIO_BIT_NUM, IOCON_MODE_INACT, IOCON_FUNC0);
-	Chip_IOCON_PinMux(LPC_IOCON, JOYSTICK_LEFT_GPIO_PORT_NUM, JOYSTICK_LEFT_GPIO_BIT_NUM, IOCON_MODE_INACT, IOCON_FUNC0);
-	Chip_IOCON_PinMux(LPC_IOCON,
-					  JOYSTICK_RIGHT_GPIO_PORT_NUM,
-					  JOYSTICK_RIGHT_GPIO_BIT_NUM,
-					  IOCON_MODE_INACT,
-					  IOCON_FUNC0);
-	Chip_IOCON_PinMux(LPC_IOCON,
-					  JOYSTICK_PRESS_GPIO_PORT_NUM,
-					  JOYSTICK_PRESS_GPIO_BIT_NUM,
-					  IOCON_MODE_INACT,
-					  IOCON_FUNC0);
-	Chip_GPIO_WriteDirBit(LPC_GPIO, JOYSTICK_UP_GPIO_PORT_NUM, JOYSTICK_UP_GPIO_BIT_NUM, false);		// input
-	Chip_GPIO_WriteDirBit(LPC_GPIO, JOYSTICK_DOWN_GPIO_PORT_NUM, JOYSTICK_DOWN_GPIO_BIT_NUM, false);	// input
-	Chip_GPIO_WriteDirBit(LPC_GPIO, JOYSTICK_LEFT_GPIO_PORT_NUM, JOYSTICK_LEFT_GPIO_BIT_NUM, false);	// input
-	Chip_GPIO_WriteDirBit(LPC_GPIO, JOYSTICK_RIGHT_GPIO_PORT_NUM, JOYSTICK_RIGHT_GPIO_BIT_NUM, false);	// input
-	Chip_GPIO_WriteDirBit(LPC_GPIO, JOYSTICK_PRESS_GPIO_PORT_NUM, JOYSTICK_PRESS_GPIO_BIT_NUM, false);	// input
-}
-
-uint8_t Joystick_GetStatus(void)
-{
-	uint8_t ret = NO_BUTTON_PRESSED;
-	if ((Chip_GPIO_ReadPortBit(LPC_GPIO, JOYSTICK_UP_GPIO_PORT_NUM, JOYSTICK_UP_GPIO_BIT_NUM)) == 0x00) {
-		ret |= JOY_UP;
-	}
-	else if (Chip_GPIO_ReadPortBit(LPC_GPIO, JOYSTICK_DOWN_GPIO_PORT_NUM, JOYSTICK_DOWN_GPIO_BIT_NUM) == 0x00) {
-		ret |= JOY_DOWN;
-	}
-	else if ((Chip_GPIO_ReadPortBit(LPC_GPIO, JOYSTICK_LEFT_GPIO_PORT_NUM, JOYSTICK_LEFT_GPIO_BIT_NUM)) == 0x00) {
-		ret |= JOY_LEFT;
-	}
-	else if (Chip_GPIO_ReadPortBit(LPC_GPIO, JOYSTICK_RIGHT_GPIO_PORT_NUM, JOYSTICK_RIGHT_GPIO_BIT_NUM) == 0x00) {
-		ret |= JOY_RIGHT;
-	}
-	else if ((Chip_GPIO_ReadPortBit(LPC_GPIO, JOYSTICK_PRESS_GPIO_PORT_NUM, JOYSTICK_PRESS_GPIO_BIT_NUM)) == 0x00) {
-		ret |= JOY_PRESS;
-	}
-	return ret;
-}
-
-void Serial_CreateStream(void *Stream)
-{}
-*/
 
 
 

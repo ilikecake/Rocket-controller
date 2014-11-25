@@ -2,6 +2,48 @@
 
 #include "main.h"
 
+//Local defines for the servo
+#define SERVO_RX_TX_PORT	0
+#define SERVO_RX_TX_PIN		17
+#define SERVO_UART			LPC_UART2
+
+#define SERVO_RX_PORT		0
+#define SERVO_RX_PIN		11
+#define SERVO_TX_PORT		0
+#define SERVO_TX_PIN		10
+
+
+void MX106T_Init(void)
+{
+	//initialize the UART pins for the servo
+	Chip_IOCON_PinMux(LPC_IOCON, SERVO_RX_PORT,	SERVO_RX_PIN,	IOCON_MODE_INACT, IOCON_FUNC1);
+	Chip_IOCON_PinMux(LPC_IOCON, SERVO_TX_PORT,	SERVO_TX_PIN,	IOCON_MODE_INACT, IOCON_FUNC1);
+
+	//Initialize the RX/TX pin and set it low
+	Chip_IOCON_PinMux(LPC_IOCON, SERVO_RX_TX_PORT,	SERVO_RX_TX_PIN,	IOCON_MODE_INACT, IOCON_FUNC0);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, SERVO_RX_TX_PORT,	SERVO_RX_TX_PIN,	true);
+	Chip_GPIO_WritePortBit(LPC_GPIO, SERVO_RX_TX_PORT, SERVO_RX_TX_PIN, false);
+
+	/* Setup UART for 115.2K8N1 */
+	Chip_UART_Init(SERVO_UART);
+	Chip_UART_SetBaud(SERVO_UART, 57600);// 115200);//
+	Chip_UART_ConfigData(SERVO_UART, UART_DATABIT_8, UART_PARITY_NONE, UART_STOPBIT_1);
+
+	/* Enable UART Transmit */
+	Chip_UART_TxCmd(SERVO_UART, ENABLE);
+
+	return;
+}
+
+//Set the RX/TX line low to enable transmit mode
+//State = 0 for transmit
+void MX106T_SetState(uint8_t State)
+{
+	Chip_GPIO_WritePortBit(LPC_GPIO, SERVO_RX_TX_PORT, SERVO_RX_TX_PIN, State);
+}
+
+
+
 //allow servo to rotate freely
 void MX106T_SetWheelMode(uint8_t servoIDl)
 {
@@ -25,7 +67,7 @@ uint8_t MX106T_Set8bit(uint8_t servoID, uint8_t address, uint8_t value)
 	parameters[3] = address;	//address at which to write data
 	parameters[4] = value;		//data to write
 
-	MX106T_Send(parameters, outlength, statusPacket, 3);
+	MX106T_Send(parameters, outlength, statusPacket, 3); //3
 	//statusPacket[0]=ID
 	//statusPacket[1]=length
 	//statusPacket[2]=error
@@ -62,6 +104,7 @@ uint8_t MX106T_Read8bit(uint8_t servoID, uint8_t address)
 	uint8_t parameters[5];
 	uint8_t statusPacket[5];
 	uint8_t outlength;
+	uint8_t stat;
 
 	outlength = 4;//set number of input parameters
 	parameters[0] = servoID;
@@ -70,13 +113,28 @@ uint8_t MX106T_Read8bit(uint8_t servoID, uint8_t address)
 	parameters[3] = address;	//address of data on servo register
 	parameters[4] = 0x01;	//bytes of data to read
 
-	MX106T_Send(parameters, outlength, statusPacket, 4);
+	statusPacket[0]=0xFF;
+	statusPacket[1]=0xFF;
+	statusPacket[2]=0xFF;
+	statusPacket[3]=0xFF;
+	statusPacket[4]=0xFF;
+
+	stat = MX106T_Send(parameters, outlength, statusPacket, 4);
+
+	printf("Stat: 0x%02X\r\n", stat);
 	//_statusPacket[0]=ID
 	//_statusPacket[1]=length
 	//_statusPacket[2]=error
 	//_statusPacket[3]=data
 	//_statusPacket[4]=checksum
-	return statusPacket[3];
+	//if(stat == 0)
+	//{
+		return statusPacket[3];
+	//}
+	//else
+	//{
+	//	return stat;
+	//}
 }
 
 //read a servo property that is 2 bytes
@@ -90,10 +148,18 @@ uint16_t MX106T_Read16bit(uint8_t servoID, uint8_t address)
 	parameters[0] = servoID;
 	parameters[1] = outlength;//parameter length
 	parameters[2] = SERVO_INST_READ_DATA;
-	parameters[3] = 0x00;	//address of data on servo register
+	parameters[3] = address;	//address of data on servo register
 	parameters[4] = 0x02;	//bytes of data to read
 
+	statusPacket[0]=0xFF;
+	statusPacket[1]=0xFF;
+	statusPacket[2]=0xFF;
+	statusPacket[3]=0xFF;
+	statusPacket[4]=0xFF;
+	statusPacket[5]=0xFF;
+
 	MX106T_Send(parameters, outlength, statusPacket, 5);
+
 	//statusPacket[0]=ID
 	//statusPacket[1]=length
 	//statusPacket[2]=error
@@ -104,10 +170,11 @@ uint16_t MX106T_Read16bit(uint8_t servoID, uint8_t address)
 }
 
 
-void MX106T_Send(uint8_t* parameters, uint8_t outLength, uint8_t *inputBuffer, uint8_t inLength){
+uint8_t MX106T_Send(uint8_t* parameters, uint8_t outLength, uint8_t *inputBuffer, uint8_t inLength){
 	//IP_UART_ID_T servoUARTchannel;
 	uint8_t data;
-	uint8_t checksum;
+	uint16_t checksum;
+	uint8_t notcheck;
 	uint8_t i;
 	uint32_t timeout; //watchdog time //portTickType
 	uint32_t currentTime;
@@ -119,14 +186,11 @@ void MX106T_Send(uint8_t* parameters, uint8_t outLength, uint8_t *inputBuffer, u
 	{
 		checksum = checksum + parameters[i];
 	}
-	checksum = ~checksum;
+	notcheck = ~(checksum & 0xFF);
 	
-	if (SERVO_UART==DEBUG_UART)//check for interference from DEBUG_UART port
-	{
-		vTaskSuspend( vUARTTask );//suspend UART task until servo is done with UART
-	}
-	
-	UART_RTSConfig(SERVO_UART,1);//set Ready To Send
+
+	MX106T_SetState(0);
+	//UART_RTSConfig(SERVO_UART,1);//set Ready To Send
 
 	sendSerialUint8(0xFF,SERVO_UART);
 	sendSerialUint8(0xFF,SERVO_UART);
@@ -134,49 +198,69 @@ void MX106T_Send(uint8_t* parameters, uint8_t outLength, uint8_t *inputBuffer, u
 	{
 		sendSerialUint8(parameters[i],SERVO_UART);
 	}
-	sendSerialUint8(checksum,SERVO_UART);
+	sendSerialUint8(notcheck,SERVO_UART);
 
-	UART_RTSConfig(SERVO_UART,0);//clear Ready To Send
-
-	if (parameters[0] != 0xFE)//0xFE means the command was sent to all servos.  no response will be returne
+	while(Chip_UART_CheckBusy(SERVO_UART) == SET)
 	{
-		//vTaskDelay(configTICK_RATE_HZ*.004 );//wait ~4ms for servo to start responding
+		vTaskDelay(2);
+	}
 
+	//timeout = (uint32_t)xTaskGetTickCount() + configTICK_RATE_HZ/400;//set watchdog time for 20ms
+	//while (currentTime > timeout) {
+	//	currentTime=xTaskGetTickCount();
+	//}
+	vTaskDelay(1);//configTICK_RATE_HZ*.001 );//wait ~4ms for servo to start responding
+
+	MX106T_SetState(1);
+
+	/*for (i=0;i<=outLength;i++)
+	{
+		printf("OutputByte %u: 0x%02X\r\n",i, parameters[i]);
+	}
+	printf("Output Checksum: 0x%02X\r\n", notcheck);
+*/
+
+
+	if (parameters[0] != 0xFE)//0xFE means the command was sent to all servos.  no response will be returned
+	{
+		//printf("waiting for response\r\n");
+		//vTaskDelay(configTICK_RATE_HZ*.003 );//wait ~4ms for servo to start responding
 
 		//listen for response.  This should happen on separate interrupt
 		i=0;
-		timeout = (uint32_t)xTaskGetTickCount() + configTICK_RATE_HZ/25;//set watchdog time for 40ms
+		timeout = (uint32_t)xTaskGetTickCount() + configTICK_RATE_HZ/2;//set watchdog time for 40ms
 		while (i<2)
 		{
-			if (Chip_UART_ReceiveByte(DEBUG_UART, &data) == SUCCESS) {
+			vTaskDelay(3);//pause before checking again
+			if (Chip_UART_ReceiveByte(SERVO_UART, &data) == SUCCESS) {
 				if(i<2){//wait for 2 0xFF bytes to be recieved
 					if(data==0xFF) i+=1;
 				}
 			}
-			currentTime=xTaskGetTickCount() ;
-			if (currentTime> timeout) i=3;//exit loop if timeout has occurred
+			currentTime= (uint32_t)xTaskGetTickCount() ;
+			if (currentTime> timeout) return 0xFE; //i=3;//exit loop if timeout has occurred
 		}
 
-
 		i=0;
-		timeout = xTaskGetTickCount() + configTICK_RATE_HZ/25; //set watchdog time for 40ms
+		timeout = xTaskGetTickCount() + configTICK_RATE_HZ/2; //set watchdog time for 40ms
 		while (i<inLength)
 		{
-
-			if (Chip_UART_ReceiveByte(DEBUG_UART, &data) == SUCCESS){
+			vTaskDelay(3);//pause before checking again
+			if (Chip_UART_ReceiveByte(SERVO_UART, &data) == SUCCESS){
 				inputBuffer[i] = data;
 				i+=1;
 			}
-			currentTime=xTaskGetTickCount() ;
-			if (currentTime > timeout) i=inLength+1;//exit loop if timeout has occurred
-
+			currentTime= (uint32_t)xTaskGetTickCount() ;
+			if (currentTime > timeout) return 0xFF;
 		}
 
-
-		if (SERVO_UART==DEBUG_UART)//check for interference from DEBUG_UART port
+		/*for (i=0;i<=inLength;i++)
 		{
-			vTaskResume( vUARTTask );//resume UART task when servo is done with UART port
-		}
+			printf("InputByte %u: 0x%02X\r\n",i, inputBuffer[i]);
+		}*/
+
+
 	}
 
+	return 0;
 }

@@ -148,7 +148,6 @@ void ReadData(void)
 
 	if( xSemaphoreTake( dataSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
 	{
-
 		dataSendTime[0] = dataTime[0] - fireStartTime;	//store start and end time of data sample
 		dataSendTime[1] = dataTime[1] - fireStartTime;	//record data acquisition end time
 
@@ -168,7 +167,7 @@ void ReadData(void)
 			i++;
 		}
 
-		//update temperature data to buffer then update cold junction data to buffer
+		//update temperature data to buffer
 		for(channel=0;channel<TC_CHIPS;channel++)
 		{
 			dataSendBuffer[i]=dataTC[channel];
@@ -179,9 +178,9 @@ void ReadData(void)
 		averageTjunction=0;
 		for(channel=TC_CHIPS;channel<2*TC_CHIPS;channel++)
 		{
-			averageTjunction+=dataTC[channel];
+			averageTjunction+=(uint32_t)dataTC[channel];
 		}
-		dataSendBuffer[i]=(uint8_t)(averageTjunction/TC_CHIPS);
+		dataSendBuffer[i]=(uint16_t)(averageTjunction/(uint32_t)TC_CHIPS);
 		i++;
 
 		//servo buffer will not be time consistent
@@ -265,23 +264,22 @@ void ReadServo(void)
 	{
 		for (i=0;i<TOTAL_SERVO_CHANNELS;i++)
 		{
-			if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
-			{
-				//dataServo[i] = MX106T_Read16bit(i,SERVO_PRESENT_POSITION_16);
-				dataServo[i] = 13;
+			//if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
+			//{
+				dataServo[i] = MX106T_Read16bit(1,SERVO_PRESENT_POSITION_16);
 
-				xSemaphoreGive(servoSemaphore);//give back servo semaphore
-			}
+				//xSemaphoreGive(servoSemaphore);//give back servo semaphore
+			//}
 		}
 		for (i=0;i<TOTAL_SERVO_CHANNELS;i++)
 		{
-			if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
-			{
-				//dataServo[i] = MX106T_Read16bit(i,SERVO_PRESENT_TORQUE_16);
-				dataServo[TOTAL_SERVO_CHANNELS+i] = 61;
+			//if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
+			//{
+				dataServo[i] = 61;//MX106T_Read16bit(1,SERVO_PRESENT_LOAD_16);
+				//dataServo[TOTAL_SERVO_CHANNELS+i] = 61;
 
-				xSemaphoreGive(servoSemaphore);//give back servo semaphore
-			}
+				//xSemaphoreGive(servoSemaphore);//give back servo semaphore
+			//}
 		}
 
 
@@ -318,7 +316,6 @@ void SendData(void)
 		for(channel=0;channel<2*AI_CHANNELS_PER_CHIP+TC_CHIPS*TC_CHANNELS_PER_CHIP+1+TOTAL_SERVO_CHANNELS*2+4;channel++)
 		{
 			sendSerialUInt16(dataSendBuffer[channel],DEBUG_UART);
-			//sendSerialUInt16((uint16_t)channel,DEBUG_UART);
 		}
 
 		//give data buffer semaphore

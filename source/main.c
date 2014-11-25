@@ -106,47 +106,40 @@ static void prvSetupHardware(void)
 	Board_LED_Set(1, true);
 	Board_LED_Set(2, false);
 
-
-
-	//Chip_GPIO_WriteDirBit(LPC_GPIO, 0, 17, true);
-	//Chip_GPIO_WritePortBit(LPC_GPIO, 0, 17, false);
+	MX106T_Init();
 
 	/* SSP initialization */
 	Board_SSP_Init(LPC_SSP1);
 	Chip_SSP_Init(LPC_SSP1);
 	Chip_SSP_Enable(LPC_SSP1);
 
-
-
-	i2c_app_init(I2C1, SPEED_100KHZ);//SPEED_400KHZ
+	i2c_app_init(I2C1, SPEED_400KHZ);//SPEED_100KHZ);//SPEED_400KHZ);//
 
 	XRA1402Init();
-
-	//Initalize I2C
-	//i2c_app_init(I2C0, SPEED_100KHZ);//SPEED_400KHZ
-
-	/* Set default mode to interrupt */
-	//i2c_set_mode(I2C0, 0);
 
 	//AD5666Init();//set up Analog Output chip
 	AD7606Init();//set up Analog Input chip
 
+	PCA9535_Init();
 
+	//check for plugged in USB line
+	if (Chip_GPIO_ReadPortBit(LPC_GPIO, USB_GPIO_PORT_NUM, USB_GPIO_BIT_NUM ) == true)
+	{
+		Board_Xbee_Set(false);//disable Xbee if USB is plugged in
+		printf("USB detected, Xbee disabled\r\n");
+	}
+	else
+	{
+		Board_Xbee_Set(true);
+		printf("USB not detected, Xbee enabled\r\n");
+	}
 
-	//MAX31855Init();//set up thermocouple chip
+	dataRate = 10;//Hz set default data aquisition rate
 
-	/* Initial LED0 state is off */
-
-	//Board_LED_Set(3, true);
 }
 
 /* Emergency Stop thread */
 void vEStopTask(void * pvParameters ) {
-//static portTASK_FUNCTION(vEStopTask, pvParameters) {
-	//portTickType tickTime;
-	//portTickType interval;
-	//interval=configTICK_RATE_HZ/100;//Set frequency to 100 loops per second
-
 	vTaskSuspend( NULL ); //suspend current task until triggered by emergency stop event
 	emergencyStop = 1;
 
@@ -157,45 +150,35 @@ void vEStopTask(void * pvParameters ) {
 	uint8_t i;
 	for (i=0;i<TOTAL_DO_CHANNELS;i++)
 	{
-		Board_DO_Set(i, 0);//set all outputs to 0
+		Board_DO_Set((uint16_t) 0);//set all outputs to 0
 	}
 
 	//set servos to closed
-	if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
+	if( xSemaphoreTake( servoSemaphore, ( portTickType ) 200 ) == pdTRUE )	//take data buffer semaphore
 	{
-		MX106T_Set16bit(1,SERVO_PRESENT_POSITION_16,Servo_Command[commandNum][0]);//N2O Valve
-		MX106T_Set16bit(2,SERVO_PRESENT_POSITION_16,Servo_Command[commandNum][1]);//Fuel Valve
+		MX106T_Set16bit(1,SERVO_PRESENT_POSITION_16,0);//N2O Valve
+		MX106T_Set16bit(2,SERVO_PRESENT_POSITION_16,0);//Fuel Valve
 		xSemaphoreGive(servoSemaphore);//give back servo semaphore
 		servoCommandFlag = 0;
 	}
 
-
 	//wait for a few seconds.  Continue recording data for 5 seconds during shutdown.
 	vTaskDelay(configTICK_RATE_HZ * 5);
-
 
 	activeSaveData = 0;//stop recording data
 
 	//kill E-Stop task
 	vTaskDelete(vEStopTaskHandle);
-
 }
 
 
 /* Run test sequence */
 void vFireControlTask(void * pvParameters ) {
-//static portTASK_FUNCTION(vFireControlTask, pvParameters) {
 	portTickType tickTime;
 	portTickType interval;
-	uint8_t g = 0;
-	uint8_t channel;
-	//interval=configTICK_RATE_HZ/5;//Set frequency to 100 loops per secon
+	//uint8_t channel;
 
 	//Ensure that a valid control sequence has been uploaded
-
-	//Board_LED_Set(0,1);
-	//Board_LED_Set(1,0);
-	//Board_LED_Set(2,1);
 
 	runningControl = 1;//show that control sequence is running
 	redlinesEnabled = 1;
@@ -230,20 +213,37 @@ void vFireControlTask(void * pvParameters ) {
 			vTaskDelayUntil(&tickTime,interval);
 		}
 
-
-		for (channel=0;channel<TOTAL_DO_CHANNELS;channel++)
+		//set digital outputs
+		/*for (channel=0;channel<TOTAL_DO_CHANNELS;channel++)
 		{
 			//DO0 is LSB, DO16 is MSB
-			Board_DO_Set(channel, (DO_Command[commandNum]&(1<<channel))>>channel );
-		}
+			PCA9535_SetOutput(channel, (DO_Command[commandNum]&(1<<channel))>>channel );
+			Board_DO_Set
+		}*/
+		Board_DO_Set(DO_Command[commandNum]);//set all DO channel states at once
 
 
-		//send position commands to servos
+		//send position commands to servos.  this will take a while
 		//vTaskResume(vServoWriteTaskHandle);
-		if( xSemaphoreTake( servoSemaphore, ( portTickType ) 50 ) == pdTRUE )	//take data buffer semaphore
+		if( xSemaphoreTake( servoSemaphore, ( portTickType ) 50 ) == pdTRUE )	//take servo semaphore
 		{
-			//MX106T_Set16bit(1,SERVO_PRESENT_POSITION_16,Servo_Command[commandNum][0]);//N2O Valve
-			//MX106T_Set16bit(2,SERVO_PRESENT_POSITION_16,Servo_Command[commandNum][1]);//Fuel Valve
+			if (commandNum>0)
+			{
+				//only send a new servo command if it is different from previous command
+				if (Servo_Command[commandNum][0] != Servo_Command[commandNum-1][0])
+				{
+					MX106T_Set16bit(1,SERVO_PRESENT_POSITION_16,Servo_Command[commandNum][0]);//N2O Valve
+				}
+				if (Servo_Command[commandNum][1] != Servo_Command[commandNum-1][1])
+				{
+					MX106T_Set16bit(1,SERVO_PRESENT_POSITION_16,Servo_Command[commandNum][1]);//Fuel Valve
+				}
+			}
+			else
+			{
+				MX106T_Set16bit(1,SERVO_PRESENT_POSITION_16,Servo_Command[commandNum][0]);//N2O Valve
+				MX106T_Set16bit(2,SERVO_PRESENT_POSITION_16,Servo_Command[commandNum][1]);//Fuel Valve
+			}
 			xSemaphoreGive(servoSemaphore);//give back servo semaphore
 			servoCommandFlag = 0;
 		}
@@ -253,31 +253,6 @@ void vFireControlTask(void * pvParameters ) {
 		}
 
 		commandNum++;
-
-
-
-/*
-
-		tickTime = xTaskGetTickCount();
-		//UpdateCommand(tickTime);
-
-		if (g==0)
-		{
-			g=1;
-		}
-		else
-		{
-			g=0;
-		}
-
-		for (channel=0;channel<TOTAL_DO_CHANNELS;channel++)
-		{
-			//DO0 is LSB, DO16 is MSB
-			Board_DO_Set(channel, g);
-		}
-
-		vTaskDelayUntil(&tickTime,interval);
-		*/
 
 	}
 
@@ -298,12 +273,8 @@ void vFireControlTask(void * pvParameters ) {
 
 /* This task reads data from analog inputs and TCs */
 void vDataAquisitionTask(void * pvParameters ) {
-//static portTASK_FUNCTION(vDataAquisitionTask, pvParameters) {
 	portTickType tickTime;
 	portTickType interval;
-	//uint8_t g = 0;
-	//uint8_t LEDblink = 0;
-	interval=configTICK_RATE_HZ/100;//Set frequency to 100 loops per second (must be less than 125Hz)
 	vTaskSuspend( NULL );//suspend current task
 
 	while (1)
@@ -313,16 +284,12 @@ void vDataAquisitionTask(void * pvParameters ) {
 		vTaskResume(vServoReadTaskHandle);
 		vTaskResume(vDataSendTaskHandle);
 
-		//ReadData();//takes 34.5ms
-		//SendData();//send data to remote computer via wireless RS232
-
 		//if (activeSaveData == 1)
 		//{
 		//	//save data to flash or SD card
 		//}
 
-
-
+		interval=configTICK_RATE_HZ/dataRate;//Set frequency to 100 loops per second (must be less than 125Hz)
 		vTaskDelayUntil(&tickTime,interval);
 	}
 }
@@ -373,27 +340,26 @@ void vServoReadTask(void * pvParameters ) {
 
 /* This task looks for waiting commands from UART and runs them */
 void vRunCommandTask(void * pvParameters ) {
+
 	while (1)
 	{
 		RunCommand();
+
+		Board_LED_Set(0, false);
+
 		vTaskDelay(configTICK_RATE_HZ/5);
 	}
 }
 
-/* UART (or output) thread */
+/* UART input thread */
 void vUARTTask(void * pvParameters ) {
 	int tickCnt = 0;
-
 	while (1)
 	{
 		tickCnt = Board_UARTGetChar();
 		if(tickCnt != EOF)
 		{
-			//Board_UARTPutChar((char)tickCnt);
-			//Board_UARTPutChar((char)33);
-			//printf("b");
 			CommandGetInputChar((char)(tickCnt));
-			//Board_UARTPutChar((char)(tickCnt));
 		}
 	}
 
@@ -420,23 +386,26 @@ int main(void)
 	Board_LED_Set(1, false);
 	Board_LED_Set(2, true);
 
-	/* UART output thread, simply counts seconds */
+	/* UART input thread */
 	xTaskCreate(vUARTTask, (signed char *) "vTaskUart",
-				128, NULL, (tskIDLE_PRIORITY + 1UL),
+				256, NULL, (tskIDLE_PRIORITY + 1UL),
 				&vUARTTaskHandle);
 
-	/* UART output thread, simply counts seconds */
+	/* Run user commands thread */
 	xTaskCreate(vRunCommandTask, (signed char *) "vCommand",
 				256, NULL, (tskIDLE_PRIORITY + 2UL),
 				&vRunCommandTaskHandle);
 
 	// Send analog data back to computer via wireless RS232:  is immediately suspended
 	xTaskCreate(vDataSendTask, (signed char *) "vDataSendTask",
-				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 3UL),
+				256, NULL, (tskIDLE_PRIORITY + 3UL),
 				&vDataSendTaskHandle);
 
 	// Read Stats from servo motors
-	xTaskCreate(vServoReadTask, (signed char *) "vDataSendTask", configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 4UL), &vServoReadTaskHandle);
+	xTaskCreate(vServoReadTask, (signed char *) "vDataSendTask",
+				configMINIMAL_STACK_SIZE, NULL,
+				(tskIDLE_PRIORITY + 4UL),
+				&vServoReadTaskHandle);
 
 	// Read all analog & TC data:  is immediately suspended
 	xTaskCreate(vDataReadTask, (signed char *) "vDataSendTask",
@@ -449,6 +418,12 @@ int main(void)
 				configMINIMAL_STACK_SIZE+128, NULL, (tskIDLE_PRIORITY + 6UL),
 				&vDataAquisitionTaskHandle);
 
+	//task 7 is fire
+	//task 8 is e-stop
+
+
+
+
 
 	/* Start the scheduler */
 	vTaskStartScheduler();
@@ -459,6 +434,10 @@ int main(void)
 	/* Should never arrive here */
 	return 1;
 }
+
+
+
+
 
 /**
  * @}
