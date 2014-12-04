@@ -35,6 +35,37 @@ void MX106T_Init(void)
 	return;
 }
 
+
+uint8_t MX106T_Ping(uint8_t servoID)
+{//returns true if servo with servoID exists
+	uint8_t result;
+	/*uint8_t parameters[5];
+	uint8_t statusPacket[3];
+	uint8_t outlength;
+
+	outlength = 2;				//set number of input parameters
+
+	parameters[0] = servoID;	//use 0xFE to command all connected servos
+	parameters[1] = outlength;	//parameter length
+	parameters[2] = SERVO_INST_PING;
+
+	result=MX106T_Send(parameters, outlength, statusPacket,3);
+
+	if (result==1)
+	{return 1;}
+	else
+	{return 0;}
+	*/
+
+	result=MX106T_Read8bit(servoID,SERVO_ID_8);
+
+	if (result==1)
+	{return 1;}
+	else
+	{return 0;}
+}
+
+
 //Set the RX/TX line low to enable transmit mode
 //State = 0 for transmit
 void MX106T_SetState(uint8_t State)
@@ -52,6 +83,7 @@ void MX106T_SetWheelMode(uint8_t servoIDl)
 	MX106T_Set16bit(1,SERVO_CCW_ANGLE_LIMIT_16,0);
 	return;
 }
+
 
 //set a servo property that has only one byte
 uint8_t MX106T_Set8bit(uint8_t servoID, uint8_t address, uint8_t value)
@@ -127,14 +159,14 @@ uint8_t MX106T_Read8bit(uint8_t servoID, uint8_t address)
 	//_statusPacket[2]=error
 	//_statusPacket[3]=data
 	//_statusPacket[4]=checksum
-	//if(stat == 0)
-	//{
+	if(stat == 1)
+	{
 		return statusPacket[3];
-	//}
-	//else
-	//{
-	//	return stat;
-	//}
+	}
+	else
+	{
+		return stat;
+	}
 }
 
 //read a servo property that is 2 bytes
@@ -178,7 +210,6 @@ uint8_t MX106T_Send(uint8_t* parameters, uint8_t outLength, uint8_t *inputBuffer
 	uint8_t i;
 	uint32_t timeout; //watchdog time //portTickType
 	uint32_t currentTime;
-	//servoUARTchannel=LPC_UART0;
 
 	//fill in checksum for this set of output parameters
 	checksum = 0;
@@ -188,9 +219,7 @@ uint8_t MX106T_Send(uint8_t* parameters, uint8_t outLength, uint8_t *inputBuffer
 	}
 	notcheck = ~(checksum & 0xFF);
 	
-
 	MX106T_SetState(0);
-	//UART_RTSConfig(SERVO_UART,1);//set Ready To Send
 
 	sendSerialUint8(0xFF,SERVO_UART);
 	sendSerialUint8(0xFF,SERVO_UART);
@@ -202,30 +231,14 @@ uint8_t MX106T_Send(uint8_t* parameters, uint8_t outLength, uint8_t *inputBuffer
 
 	while(Chip_UART_CheckBusy(SERVO_UART) == SET)
 	{
-		vTaskDelay(2);
+		vTaskDelay(1);
 	}
-
-	//timeout = (uint32_t)xTaskGetTickCount() + configTICK_RATE_HZ/400;//set watchdog time for 20ms
-	//while (currentTime > timeout) {
-	//	currentTime=xTaskGetTickCount();
-	//}
-	vTaskDelay(1);//configTICK_RATE_HZ*.001 );//wait ~4ms for servo to start responding
-
+	//the RX/TX lines must switch as fast as possible after SERVO_UART send is complete
 	MX106T_SetState(1);
-
-	/*for (i=0;i<=outLength;i++)
-	{
-		printf("OutputByte %u: 0x%02X\r\n",i, parameters[i]);
-	}
-	printf("Output Checksum: 0x%02X\r\n", notcheck);
-*/
 
 
 	if (parameters[0] != 0xFE)//0xFE means the command was sent to all servos.  no response will be returned
 	{
-		//printf("waiting for response\r\n");
-		//vTaskDelay(configTICK_RATE_HZ*.003 );//wait ~4ms for servo to start responding
-
 		//listen for response.  This should happen on separate interrupt
 		i=0;
 		timeout = (uint32_t)xTaskGetTickCount() + configTICK_RATE_HZ/2;//set watchdog time for 40ms
@@ -243,7 +256,7 @@ uint8_t MX106T_Send(uint8_t* parameters, uint8_t outLength, uint8_t *inputBuffer
 
 		i=0;
 		timeout = xTaskGetTickCount() + configTICK_RATE_HZ/2; //set watchdog time for 40ms
-		while (i<inLength)
+		while (i<=inLength)
 		{
 			vTaskDelay(3);//pause before checking again
 			if (Chip_UART_ReceiveByte(SERVO_UART, &data) == SUCCESS){
@@ -262,5 +275,5 @@ uint8_t MX106T_Send(uint8_t* parameters, uint8_t outLength, uint8_t *inputBuffer
 
 	}
 
-	return 0;
+	return 1;
 }

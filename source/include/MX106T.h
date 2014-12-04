@@ -60,10 +60,12 @@
 #define SERVO_GOAL_TORQUE_16		0X47
 #define SERVO_GOAL_ACCELERATION_8	0X49
 
-#define SERVO_DEADBAND	8	//milliseconds it takes to finish processing servo requests
+#define SERVO_DEADBAND	10	//milliseconds it takes to finish processing servo requests
 //#define SERVO_UART LPC_UART0
 
 void MX106T_Init(void);
+
+uint8_t MX106T_Ping(uint8_t servoID);//returns true if servo with servoID exists
 
 void MX106T_SetState(uint8_t State);	//1 to transmit, 0 to recieve
 

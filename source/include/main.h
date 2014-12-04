@@ -29,6 +29,8 @@
 #include "XRA1402.h"
 #include "PCA9535.h"
 
+//#include "pwm.h"
+
 
 void vEStopTask(void * pvParameters );
 void vFireControlTask(void * pvParameters );
@@ -42,7 +44,7 @@ void vRunCommandTask(void * pvParameters );
 void vUARTTask(void * pvParameters );
 
 
-
+uint8_t usb_detect;
 
 
 

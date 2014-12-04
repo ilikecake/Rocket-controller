@@ -35,6 +35,7 @@
 #include "chip.h"
 #include "board_api.h"
 #include "lpc_phy.h"
+#include "pwm.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,17 +60,43 @@ extern "C" {
 
 #define BOARD_NXP_XPRESSO_1769	/*!< Build for Xpresso LPC1769 board */
 
-#define LED0_GPIO_PORT_NUM                      1
-#define LED0_GPIO_BIT_NUM                       9
-#define LED1_GPIO_PORT_NUM                      1
-#define LED1_GPIO_BIT_NUM                       10
-#define LED2_GPIO_PORT_NUM                      1
-#define LED2_GPIO_BIT_NUM                       14
+#define LED0_GPIO_PORT_NUM				1
+#define LED0_GPIO_BIT_NUM				9
+#define LED1_GPIO_PORT_NUM				1
+#define LED1_GPIO_BIT_NUM				10
+#define LED2_GPIO_PORT_NUM				1
+#define LED2_GPIO_BIT_NUM				14
 
-#define XBEE_GPIO_PORT_NUM						1
-#define XBEE_GPIO_BIT_NUM						31
-#define USB_GPIO_PORT_NUM						1
-#define USB_GPIO_BIT_NUM						19
+#define XBEE_GPIO_PORT_NUM				1
+#define XBEE_GPIO_BIT_NUM				31
+#define USB_GPIO_PORT_NUM				3
+#define USB_GPIO_BIT_NUM				26
+
+//#define LPC_PCONP						0x400FC0C4	//address of power control for peripherals
+//#define LPC_PCONP_PCPWM1				0x40 //mask bit for PWM power control bit
+//#define LCP_PCLKSEL0					0x400FC1A8	//Peripheral Clock Selection registers 0
+//#define LCP_PCLKSEL0_PCLK_PWM1			0x1800 //mask bits for Peripheral clock selection for PWM1
+/*
+#define LER0_EN			1 << 0
+#define LER1_EN			1 << 1
+#define LER2_EN			1 << 2
+#define LER3_EN			1 << 3
+#define LER4_EN			1 << 4
+#define LER5_EN			1 << 5
+#define LER6_EN			1 << 6
+#define PWMENA1			1 << 9
+#define PWMENA2			1 << 10
+#define PWMENA3			1 << 11
+#define PWMENA4			1 << 12
+#define PWMENA5			1 << 13
+#define PWMENA6			1 << 14
+#define TCR_CNT_EN		0x00000001
+#define TCR_RESET		0x00000002
+#define TCR_PWM_EN		0x00000008
+*/
+
+
+
 
 #define TOTAL_DO_CHANNELS				16
 #define TOTAL_SERVO_CHANNELS			2
@@ -81,11 +108,11 @@ extern "C" {
 /**
  * LED defines
  */
-#define LEDS_LED1           0x01
-#define LEDS_LED2           0x02
-#define LEDS_LED3           0x04
-#define LEDS_LED4           0x08
-#define LEDS_NO_LEDS        0x00
+//#define LEDS_LED1           0x01
+//#define LEDS_LED2           0x02
+//#define LEDS_LED3           0x04
+//#define LEDS_LED4           0x08
+//#define LEDS_NO_LEDS        0x00
 
 
 void sendSerialUint8(uint8_t msg, LPC_USART_T *pUART);
@@ -98,6 +125,10 @@ void UART_RTSConfig(LPC_USART_T *pUART, uint8_t RTSState);
 void Board_DO_Set(uint16_t DOstates);
 
 void Board_Xbee_Set(bool state);
+
+void Board_LED_Init(void);
+
+void InitPWM(void);
 
 /**
  * @brief	Initialize pin muxing for a UART
@@ -112,14 +143,8 @@ void Board_UART_Init(LPC_USART_T *pUART);
  * @return	Nothing
  * @note    Returns the MAC address used by Ethernet
  */
-void Board_ENET_GetMacADDR(uint8_t *mcaddr);
+//void Board_ENET_GetMacADDR(uint8_t *mcaddr);
 
-/**
- * @brief	Sets up board audio output
- * @param	audio_in_sel	: audio input selection
- * @return	Nothing
- */
-void Board_Audio_Init(uint8_t audio_in_sel);
 
 /**
  * @brief	Initialize pin muxing for SSP interface

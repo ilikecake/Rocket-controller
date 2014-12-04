@@ -71,7 +71,7 @@ uint32_t SystemCoreClock;
  ****************************************************************************/
 
 /* Initializes board LED(s) */
-static void Board_LED_Init(void)
+void Board_LED_Init(void)
 {
 	/* Pin PIO0_22 is configured as GPIO pin during SystemInit */
 	/* Set the PIO_22 as output */
@@ -83,6 +83,7 @@ static void Board_LED_Init(void)
 	Chip_GPIO_WritePortBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, false);
 	Chip_GPIO_WritePortBit(LPC_GPIO, LED1_GPIO_PORT_NUM, LED1_GPIO_BIT_NUM, false);
 	Chip_GPIO_WritePortBit(LPC_GPIO, LED2_GPIO_PORT_NUM, LED2_GPIO_BIT_NUM, false);
+
 }
 
 /* Sets the state of a board LED to on or off
@@ -264,6 +265,8 @@ bool Board_LED_Test(uint8_t LEDNumber)
    board hardware */
 void Board_Init(void)
 {
+	//uint32_t temp;
+
 	/* Sets up DEBUG UART */
 	DEBUGINIT();
 
@@ -278,23 +281,16 @@ void Board_Init(void)
 	Chip_GPIO_WriteDirBit(LPC_GPIO, XBEE_GPIO_PORT_NUM, XBEE_GPIO_BIT_NUM, true);
 
 	//initialize USB detect pin
-	Chip_GPIO_WriteDirBit(LPC_GPIO, USB_GPIO_PORT_NUM, USB_GPIO_BIT_NUM, false);
-	Chip_IOCON_PinMux(LPC_IOCON, USB_GPIO_PORT_NUM, USB_GPIO_BIT_NUM, IOCON_MODE_PULLUP, IOCON_FUNC0);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, USB_GPIO_PORT_NUM, USB_GPIO_BIT_NUM, false); //pin26
+	Chip_IOCON_PinMux(LPC_IOCON, USB_GPIO_PORT_NUM, USB_GPIO_BIT_NUM, IOCON_MODE_PULLDOWN, IOCON_FUNC0);
 
-
+	//InitPWM();
 
 
 	/* Initialize LEDs */
 	Board_LED_Init();
 }
 
-/* Returns the MAC address assigned to this board */
-/*void Board_ENET_GetMacADDR(uint8_t *mcaddr)
-{
-	const uint8_t boardmac[] = {0x00, 0x60, 0x37, 0x12, 0x34, 0x56};
-
-	memcpy(mcaddr, boardmac, 6);
-}*/
 
 /* Initialize pin muxing for SSP interface */
 void Board_SSP_Init(LPC_SSP_T *pSSP)
@@ -366,8 +362,6 @@ void Board_SPI_DeassertSSEL(void)
 	Chip_GPIO_WritePortBit(LPC_GPIO, 0, 16, true);
 }
 
-void Board_Audio_Init(uint8_t audio_in_sel)
-{}
 
 /* Sets up board specific I2C interface */
 void Board_I2C_Init(I2C_ID_T id)

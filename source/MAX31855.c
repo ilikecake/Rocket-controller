@@ -33,6 +33,10 @@ void MAX31855Select( uint8_t sel )
 {
 	if(sel < 8)
 	{
+		//correct two channels that are flipped on the board
+		if (sel==4) {sel=5;}
+		else if (sel==5) {sel=4;}
+
 		XRA1402WriteReg(XRA1402_REG_OCR, ~(1<<sel));
 	}
 	else

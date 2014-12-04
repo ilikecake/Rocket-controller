@@ -1,101 +1,14 @@
 /*
  * main.c
- *
- *  Created on: Sep 24, 2013
+ * @brief HPN (NE-1) Rocket project controller board *
+ *  Created on: Sep 24, 2014
  *      Author: pat
  */
-
-
-/*
- * @brief FreeRTOS Blinky example
- *
- * @note
- * Copyright(C) NXP Semiconductors, 2012
- * All rights reserved.
- *
- * @par
- * Software that is described herein is for illustrative purposes only
- * which provides customers with programming information regarding the
- * LPC products.  This software is supplied "AS IS" without any warranties of
- * any kind, and NXP Semiconductors and its licensor disclaim any and
- * all warranties, express or implied, including all implied warranties of
- * merchantability, fitness for a particular purpose and non-infringement of
- * intellectual property rights.  NXP Semiconductors assumes no responsibility
- * or liability for the use of the software, conveys no license or rights under any
- * patent, copyright, mask work right, or any other intellectual property rights in
- * or to any products. NXP Semiconductors reserves the right to make changes
- * in the software without notification. NXP Semiconductors also makes no
- * representation or warranty that such application will be suitable for the
- * specified use without further testing or modification.
- *
- * @par
- * Permission to use, copy, modify, and distribute this software and its
- * documentation is hereby granted, under NXP Semiconductors' and its
- * licensor's relevant copyrights in the software, without fee, provided that it
- * is used in conjunction with NXP Semiconductors microcontrollers.  This
- * copyright, permission, and disclaimer notice must appear in all copies of
- * this code.
+/** @defgroup EXAMPLES_FREERTOS_17XX40XX_BLINKY LPC17xx/40xx FrreRTOS blinky example
  */
 
 #include "main.h"
 
-//#include "board.h"
-//#include "FreeRTOS.h"
-//#include "task.h"
-//#include "timers.h"
-
-
-//#include "command.h"
-
-/** @defgroup EXAMPLES_FREERTOS_17XX40XX_BLINKY LPC17xx/40xx FrreRTOS blinky example
- * @ingroup EXAMPLES_FREERTOS_17XX40XX
- * <b>Example description</b><br>
- * Welcome to the FreeRTOS basic blinky example. This example starts up
- * FreeRTOS and creates 3 tasks. Tasks 1 and 2 blink different LEDs at
- * different rates. Task 3 outputs a tick count to the debug channel (UART)
- * every second.<br>
- *
- * By default, tickless idle is used with this example for FreeRTOS. Normal
- * tick operation can be used by setting the configUSE_TICKLESS_IDLE definition
- * to 0 in FreeRTOSConfig.h<br>
- *
- * To use the example, connect a serial cable to the board's RS232/UART port
- * and start a terminal program (115.2K8N1) to monitor the port. The LEDs will
- * also toggle based on the task execution.<br>
- *
- * <b>Special connection requirements</b><br>
- * - Embedded Artists' LPC1788 Developer's Kit:<br>
- * - Embedded Artists' LPC4088 Developer's Kit:<br>
- * There are no special connection requirements for this example.<br>
- * - LPCXpresso LPC1769:<br>
- * Need to connect with base board for using RS232/UART port.<br>
- *
- * <b>Build procedures:</b><br>
- * @ref LPCOPEN_17XX40XX_BUILDPROCS_KEIL<br>
- * @ref LPCOPEN_17XX40XX_BUILDPROCS_IAR<br>
- * @ref LPCOPEN_17XX40XX_BUILDPROCS_XPRESSO<br>
- *
- * <b>Supported boards and board setup:</b><br>
- * @ref LPCOPEN_17XX40XX_BOARD_EA1788<br>
- * @ref LPCOPEN_17XX40XX_BOARD_EA4088<br>
- * @ref LPCOPEN_17XX40XX_BOARD_XPRESSO_1769<br>
- *
- * <b>Submitting LPCOpen issues:</b><br>
- * @ref LPCOPEN_COMMUNITY
- * @{
- */
-
-/*****************************************************************************
- * Private types/enumerations/variables
- ****************************************************************************/
-
-/*****************************************************************************
- * Public types/enumerations/variables
- ****************************************************************************/
-
-/*****************************************************************************
- * Private functions
- ****************************************************************************/
 
 /* Sets up system hardware */
 static void prvSetupHardware(void)
@@ -103,8 +16,11 @@ static void prvSetupHardware(void)
 	Board_Init();
 
 	Board_LED_Set(0, false);
-	Board_LED_Set(1, true);
+	Board_LED_Set(1, false);
 	Board_LED_Set(2, false);
+
+	InitPWM();
+
 
 	MX106T_Init();
 
@@ -124,15 +40,25 @@ static void prvSetupHardware(void)
 
 	//check for plugged in USB line
 	if (Chip_GPIO_ReadPortBit(LPC_GPIO, USB_GPIO_PORT_NUM, USB_GPIO_BIT_NUM ) == true)
-	{
+	{//USB power is plugged in
 		Board_Xbee_Set(false);//disable Xbee if USB is plugged in
+		usb_detect = 1;
+		Board_LED_Set(1, true);
+		Board_LED_Set(2, false);
 		printf("USB detected, Xbee disabled\r\n");
 	}
 	else
-	{
+	{//USB power is not plugged in
 		Board_Xbee_Set(true);
+		usb_detect = 0;
+		//Board_LED_Set(0, true);
+		Board_LED_Set(1, false);
+		Board_LED_Set(2, true);
 		printf("USB not detected, Xbee enabled\r\n");
 	}
+
+	Board_LED_Init();
+
 
 	dataRate = 10;//Hz set default data aquisition rate
 
@@ -140,35 +66,42 @@ static void prvSetupHardware(void)
 
 /* Emergency Stop thread */
 void vEStopTask(void * pvParameters ) {
-	vTaskSuspend( NULL ); //suspend current task until triggered by emergency stop event
-	emergencyStop = 1;
-
-	//kill control task
-	vTaskDelete(vFireControlTaskHandle);
-
-	//Set all outputs to emergency state
-	uint8_t i;
-	for (i=0;i<TOTAL_DO_CHANNELS;i++)
+	while (1)
 	{
-		Board_DO_Set((uint16_t) 0);//set all outputs to 0
+		vTaskSuspend( NULL ); //suspend current task until triggered by emergency stop event
+
+		if (runningControl==1 && redlinesEnabled==1)
+		{//only proceed with emergency stop if the control sequence is running
+			emergencyStop = 1;
+			redlinesEnabled=0;//disable redlines to prevent redline from triggering again
+
+			//Board_LED_Set(0, true);
+			//Board_LED_Set(1, false);
+			//Board_LED_Set(2, true);
+
+			//Set all outputs to emergency state
+			Board_DO_Set((uint16_t) 0);//set all outputs to 0
+
+			PWM_Enable(0);//turn off spark
+
+			//set servos to closed
+			servoCommandFlag = 1;//prevent ReadServo from starting a read that will conflict with the servo command timing
+			SetServoPosition(0, 50);//Servo_Command[MAX_COMMANDS-1][0]);//N2O Valve
+			SetServoPosition(1, 50);//Servo_Command[MAX_COMMANDS-1][1]);//Fuel Valve
+
+			//send close signals again to make sure they get through
+			SetServoPosition(0, 50);//Servo_Command[MAX_COMMANDS-1][0]);//N2O Valve
+			SetServoPosition(1, 50);//Servo_Command[MAX_COMMANDS-1][1]);//Fuel Valve
+			servoCommandFlag=0;
+
+
+			Board_LED_Set(0, true);
+			//Board_LED_Set(1, true);
+			//Board_LED_Set(2, true);
+
+		}
+
 	}
-
-	//set servos to closed
-	if( xSemaphoreTake( servoSemaphore, ( portTickType ) 200 ) == pdTRUE )	//take data buffer semaphore
-	{
-		MX106T_Set16bit(1,SERVO_PRESENT_POSITION_16,0);//N2O Valve
-		MX106T_Set16bit(2,SERVO_PRESENT_POSITION_16,0);//Fuel Valve
-		xSemaphoreGive(servoSemaphore);//give back servo semaphore
-		servoCommandFlag = 0;
-	}
-
-	//wait for a few seconds.  Continue recording data for 5 seconds during shutdown.
-	vTaskDelay(configTICK_RATE_HZ * 5);
-
-	activeSaveData = 0;//stop recording data
-
-	//kill E-Stop task
-	vTaskDelete(vEStopTaskHandle);
 }
 
 
@@ -176,105 +109,122 @@ void vEStopTask(void * pvParameters ) {
 void vFireControlTask(void * pvParameters ) {
 	portTickType tickTime;
 	portTickType interval;
-	//uint8_t channel;
 
-	//Ensure that a valid control sequence has been uploaded
+	while (1)
+	{
+		vTaskSuspend( NULL ); //suspend current task until triggered by emergency stop event
 
-	runningControl = 1;//show that control sequence is running
-	redlinesEnabled = 1;
-	emergencyStop = 0;//the emergency stop has not been triggered
+		Board_LED_Set(0, false);
+		Board_LED_Set(1, false);
+		Board_LED_Set(2, false);
 
-	commandNum = 0;//reset sequence to start at command 0
-	servoCommandFlag = 0;  //allow servo to be queried for position
+		//set initial DO states
+		Board_DO_Set(DO_Command[0]);//set all DO channel states at once
+		PWM_Enable(0);//set spark to initial state
 
-	fireStartTime = xTaskGetTickCount(); //store the time at which the control sequence was started
+		//set initial servo positions
+		SetServoPosition(0, Servo_Command[0][0]);//N2O Valve
+		SetServoPosition(1, Servo_Command[0][1]);//Fuel Valve
 
-	runningData = 1;
-	vTaskResume(vDataAquisitionTaskHandle);//make sure data is being acquired
 
-	while ((commandNum < MAX_COMMANDS) && (commandTime[commandNum]>0)) {
+		//Ensure that a valid control sequence has been uploaded
 
-		tickTime = xTaskGetTickCount();
+		redlinesEnabled = 1;//set flag to show that redlines are active and should be checked when reading data
+		emergencyStop = 0;//the emergency stop has not been triggered
+		redlineNumber=0xFE;//reset null redline number value
 
-		if (fireStartTime+commandTime[commandNum] > tickTime)//wait for commandTime if we haven't passed it yet
-		{
-			if (fireStartTime+commandTime[commandNum] - SERVO_DEADBAND > tickTime) //if we have time, wake up in time to stop the ReadServo
+		runningControl = 1;//show that control sequence is running
+
+		fireStartTime = xTaskGetTickCount(); //store the time at which the control sequence was started
+		runningData = 1;//show that data is being read from sensors
+		vTaskResume(vDataAquisitionTaskHandle);//make sure data is being acquired
+
+		activeSaveData=1; //begin saving data
+		commandNum = 0;//reset sequence to start at command 0
+		servoCommandFlag = 0;  //allow servo to be queried for position
+
+
+
+		while ((commandNum < MAX_COMMANDS) && (commandTime[commandNum]>0) && emergencyStop == 0) {
+			tickTime = xTaskGetTickCount();
+			if (fireStartTime+commandTime[commandNum] > tickTime)//wait for commandTime if we haven't passed it yet
 			{
-				//wait until SERVO_DEADBAND milliseconds before next command time
-				interval=(fireStartTime+commandTime[commandNum]) - SERVO_DEADBAND - tickTime;
+				if (fireStartTime+commandTime[commandNum] - SERVO_DEADBAND > tickTime) //if we have time, wake up in time to stop the ReadServo
+				{
+					//wait until SERVO_DEADBAND milliseconds before next command time
+					interval=(fireStartTime+commandTime[commandNum]) - SERVO_DEADBAND - tickTime;
+					vTaskDelayUntil(&tickTime,interval);
+
+					servoCommandFlag = 1;//prevent ReadServo from starting a read that will conflict with the servo command timing
+					tickTime = xTaskGetTickCount();
+				}
+
+				//wait for next command time
+				interval=(fireStartTime+commandTime[commandNum]) - tickTime;
 				vTaskDelayUntil(&tickTime,interval);
-
-				servoCommandFlag = 1;//prevent ReadServo from starting a read that will conflict with the servo command timing
-				tickTime = xTaskGetTickCount();
 			}
 
-			//wait for next command time
-			interval=(fireStartTime+commandTime[commandNum]) - tickTime;
-			vTaskDelayUntil(&tickTime,interval);
-		}
-
-		//set digital outputs
-		/*for (channel=0;channel<TOTAL_DO_CHANNELS;channel++)
-		{
-			//DO0 is LSB, DO16 is MSB
-			PCA9535_SetOutput(channel, (DO_Command[commandNum]&(1<<channel))>>channel );
-			Board_DO_Set
-		}*/
-		Board_DO_Set(DO_Command[commandNum]);//set all DO channel states at once
-
-
-		//send position commands to servos.  this will take a while
-		//vTaskResume(vServoWriteTaskHandle);
-		if( xSemaphoreTake( servoSemaphore, ( portTickType ) 50 ) == pdTRUE )	//take servo semaphore
-		{
-			if (commandNum>0)
+			if (emergencyStop==0)
 			{
-				//only send a new servo command if it is different from previous command
-				if (Servo_Command[commandNum][0] != Servo_Command[commandNum-1][0])
-				{
-					MX106T_Set16bit(1,SERVO_PRESENT_POSITION_16,Servo_Command[commandNum][0]);//N2O Valve
-				}
-				if (Servo_Command[commandNum][1] != Servo_Command[commandNum-1][1])
-				{
-					MX106T_Set16bit(1,SERVO_PRESENT_POSITION_16,Servo_Command[commandNum][1]);//Fuel Valve
-				}
+				//set digital outputs
+				Board_DO_Set(DO_Command[commandNum]);//set all DO channel states at once
+				PWM_Enable(Spark_Command[commandNum]);//set spark state
+				//PWM_Enable(1);
+
+				//send position commands to servos.  this will take a while
+				SetServoPosition(0, Servo_Command[commandNum][0]);//N2O Valve
+				SetServoPosition(1, Servo_Command[commandNum][1]);//Fuel Valve
+
+				commandNum++;
 			}
-			else
-			{
-				MX106T_Set16bit(1,SERVO_PRESENT_POSITION_16,Servo_Command[commandNum][0]);//N2O Valve
-				MX106T_Set16bit(2,SERVO_PRESENT_POSITION_16,Servo_Command[commandNum][1]);//Fuel Valve
-			}
-			xSemaphoreGive(servoSemaphore);//give back servo semaphore
-			servoCommandFlag = 0;
-		}
-		else
-		{	//if a servo command failed, trigger an emergency stop
-			vTaskResume(vEStopTaskHandle);
 		}
 
-		commandNum++;
+
+		if (emergencyStop==0)
+		{
+			//set final DO states
+			Board_DO_Set(DO_Command[commandNum]);//set all DO channel states at once
+			PWM_Enable(Spark_Command[commandNum]);//set spark to final state
+
+			//set final servo positions
+			SetServoPosition(0, Servo_Command[commandNum][0]);//N2O Valve
+			SetServoPosition(1, Servo_Command[commandNum][1]);//Fuel Valve
+
+		}
+
+		runningControl = 0;
+		redlinesEnabled = 0;
+
+		//wait for a few seconds.  Continue recording data for 5 seconds during shutdown.
+		vTaskDelay(configTICK_RATE_HZ * 5);
+		activeSaveData = 0;//stop recording data
 
 	}
 
-	runningControl = 0;
-	redlinesEnabled = 0;
-
-	//Board_LED_Set(0,1);
-	//Board_LED_Set(1,0);
-	//Board_LED_Set(2,1);
-
-	//kill E-Stop task
-	vTaskDelete(vEStopTaskHandle);
-
-	//kill control task
-	vTaskDelete(vFireControlTaskHandle);
-
 }
+
+
 
 /* This task reads data from analog inputs and TCs */
 void vDataAquisitionTask(void * pvParameters ) {
 	portTickType tickTime;
 	portTickType interval;
+
+	uint8_t i;
+	 //check to see if servos are connected
+	for(i=0;i<TOTAL_SERVO_CHANNELS;i++)
+	{
+		servoExists[i] = MX106T_Ping(i+1);//servo IDs start at 1 and count up
+		if (servoExists[i]==1)
+		{
+			printf("Servo %u detected\r\n",i);
+		}
+		else
+		{
+			printf("Servo %u not detected\r\n",i);
+		}
+	}
+
 	vTaskSuspend( NULL );//suspend current task
 
 	while (1)
@@ -345,7 +295,6 @@ void vRunCommandTask(void * pvParameters ) {
 	{
 		RunCommand();
 
-		Board_LED_Set(0, false);
 
 		vTaskDelay(configTICK_RATE_HZ/5);
 	}
@@ -382,9 +331,9 @@ int main(void)
 	vSemaphoreCreateBinary(dataSemaphore);
 	vSemaphoreCreateBinary(servoSemaphore);
 
-	Board_LED_Set(0, false);
-	Board_LED_Set(1, false);
-	Board_LED_Set(2, true);
+//	Board_LED_Set(0, false);
+//	Board_LED_Set(1, false);
+//	Board_LED_Set(2, true);
 
 	/* UART input thread */
 	xTaskCreate(vUARTTask, (signed char *) "vTaskUart",
@@ -418,18 +367,21 @@ int main(void)
 				configMINIMAL_STACK_SIZE+128, NULL, (tskIDLE_PRIORITY + 6UL),
 				&vDataAquisitionTaskHandle);
 
-	//task 7 is fire
-	//task 8 is e-stop
+	// Control Digital Outputs and Servos during run time
+	xTaskCreate(vFireControlTask, (signed char *) "vFireControlTask",
+				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 7UL),
+				&vFireControlTaskHandle);
 
-
-
-
+	// setup Emergency Stop task
+	xTaskCreate(vEStopTask, (signed char *) "vEStopTask",
+				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 8UL),
+				&vEStopTaskHandle);
 
 	/* Start the scheduler */
 	vTaskStartScheduler();
 
-	while (1) {}
 
+	while (1) {}
 
 	/* Should never arrive here */
 	return 1;

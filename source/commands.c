@@ -29,7 +29,7 @@
 //#include "board.h"
 
 //The number of commands
-const uint8_t NumCommands = 13;
+const uint8_t NumCommands = 14;
 
 //Handler function declarations
 
@@ -113,7 +113,11 @@ const char _F13_NAME[]  			= "datastart";
 const char _F13_DESCRIPTION[]  	= "Enable/Disable data";
 const char _F13_HELPTEXT[]  		= "'datastart' <1>";
 
-
+//Enables or disables data read and data send
+static int _F14_Handler (void);
+const char _F14_NAME[]  			= "pwm";
+const char _F14_DESCRIPTION[]  	= "pwm functions";
+const char _F14_HELPTEXT[]  		= "'pwm' <1> <2>";
 
 /*
 
@@ -131,7 +135,7 @@ const CommandListItem AppCommandList[] =
 	{ _F2_NAME,		1,  2,	_F2_Handler,	_F2_DESCRIPTION,	_F2_HELPTEXT	},		//setservo: Set servo position
 	{ _F3_NAME, 	0,  0,	_F3_Handler,	_F3_DESCRIPTION,	_F3_HELPTEXT	},		//getai: read Analog data
 	{ _F4_NAME, 	0,  1,	_F4_Handler,	_F4_DESCRIPTION,	_F4_HELPTEXT	},		//getTC: read TC data
-	{ _F5_NAME, 	0,  3+TOTAL_SERVO_CHANNELS,	_F5_Handler,	_F5_DESCRIPTION,	_F5_HELPTEXT	},		//sequence: Set Command Sequence
+	{ _F5_NAME, 	0,  4+TOTAL_SERVO_CHANNELS,	_F5_Handler,	_F5_DESCRIPTION,	_F5_HELPTEXT	},		//sequence: Set Command Sequence
 	{ _F6_NAME, 	0,  6,	_F6_Handler,	_F6_DESCRIPTION,	_F6_HELPTEXT	},		//setred: Set Redlines
 	{ _F7_NAME, 	0,  0,	_F7_Handler,	_F7_DESCRIPTION,	_F7_HELPTEXT	},		//gettime: Read Time
 	{ _F8_NAME, 	1,  1,	_F8_Handler,	_F8_DESCRIPTION,	_F8_HELPTEXT	},		//fire: start test sequence
@@ -140,6 +144,7 @@ const CommandListItem AppCommandList[] =
 	{ _F11_NAME,	0,  2,	_F11_Handler,	_F11_DESCRIPTION,	_F11_HELPTEXT	},		//setuptc: Send commands to TC chip
 	{ _F12_NAME,	0,  0,	_F12_Handler,	_F12_DESCRIPTION,	_F12_HELPTEXT	},		//i2cscan
 	{ _F13_NAME,	1,  1,	_F13_Handler,	_F13_DESCRIPTION,	_F13_HELPTEXT	},		//datastart: enables or disables data read and data send
+	{ _F14_NAME,	1,  2,	_F14_Handler,	_F14_DESCRIPTION,	_F14_HELPTEXT	},		//pwm
 	/*	{ _F13_NAME,	1,  3,	_F13_Handler,	_F13_DESCRIPTION,	_F13_HELPTEXT	},		//twiscan
 	*/
 };
@@ -213,7 +218,7 @@ static int _F2_Handler (void)
 		switch (pos)
 		{
 			case 1:
-				printf("Set servo position\r\n");
+				//printf("Set servo position\r\n");
 				MX106T_Set16bit(1, SERVO_GOAL_POSITION_16, arg2);
 				break;
 
@@ -247,6 +252,20 @@ static int _F2_Handler (void)
 				state = MX106T_Read16bit(1, (uint8_t) arg2);
 				printf("Servo data: %u\r\n", state);
 
+				break;
+			case 6:
+				pos=MX106T_Ping((uint8_t) arg2);
+				if (pos==0)
+				{
+					printf("Servo %u does not exist.\r\n",(uint8_t) arg2);
+				}
+				else
+				{
+					printf("Servo %u exists.\r\n",(uint8_t) arg2);
+				}
+				break;
+			case 7:
+				printf("USB detect = %u\r\n",usb_detect);
 				break;
 		}
 	}
@@ -282,62 +301,21 @@ static int _F3_Handler (void)
 {
 
 	uint8_t channel;
-	//uint8_t i;
-	//uint8_t chipNumber;
 	uint16_t DataSet[8];
 
-	//AD7606_Select(1,0);
-	//read analog channel data
-	//for(chipNumber=1;chipNumber<=AI_CHIPS;chipNumber++)
-	//{
-		//get analog data from chip "chipNumber"
-		AD7606GetDataSet(1, DataSet);
-		for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
-		{
-		 printf("ADC1[%u]: %d counts\r\n", channel, DataSet[channel]);
-		}
-
-		//get analog data from chip "chipNumber"
-		AD7606GetDataSet(3, DataSet);
-		for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
-		{
-		 printf("ADC3[%u]: %d counts\r\n", channel, DataSet[channel]);
-		}
-
-	//}
-
-
-/*
-	portTickType tickTime;
-	portTickType interval;
-	//interval=configTICK_RATE_HZ/100;//Set frequency to 100 loops per second
-	interval=configTICK_RATE_HZ/5;//Set frequency to 5 loops per second
-
-	while (1)
+	//get analog data from chip "chipNumber"
+	AD7606GetDataSet(1, DataSet);
+	for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
 	{
-		tickTime = xTaskGetTickCount();
-
-		//get analog data from chip "chipNumber"
-		/ReadData();
-		//SendData();
-
-		//get analog data from chip "chipNumber"
-		AD7606GetDataSet(1, DataSet);
-		for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
-		{
-		 printf("ADC1[%u]: %d counts\r\n", channel, DataSet[channel]);
-		}
-
-		AD7606GetDataSet(3, DataSet);
-		for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
-		{
-		 printf("ADC3[%u]: %d counts\r\n", channel, DataSet[channel]);
-		}
-
-
-		vTaskDelayUntil(&tickTime,interval);
+	 printf("ADC1[%u]: %d counts\r\n", channel, DataSet[channel]);
 	}
-*/
+
+	//get analog data from chip "chipNumber"
+	AD7606GetDataSet(3, DataSet);
+	for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
+	{
+	 printf("ADC3[%u]: %d counts\r\n", channel, DataSet[channel]);
+	}
 
 	return 0;
 }
@@ -377,72 +355,65 @@ static int _F5_Handler (void)
 	//setup the fire sequence
 	//commandMax=MAX_COMMANDS-1;
 	uint8_t channel;
+	uint8_t cNum;
 
-	if(NumberOfArguments() == 3+TOTAL_SERVO_CHANNELS)
+	if(NumberOfArguments() == 4+TOTAL_SERVO_CHANNELS)
 	{
-		commandNum = argAsInt(1);//when setup is complete CommandNum will be the last command
-		if (commandNum >= MAX_COMMANDS)
+		cNum = argAsInt(1);//when setup is complete CommandNum will be the last command
+		if (cNum >= MAX_COMMANDS)
 		{
 			printf("Exceeded maximum sequence lines:\r\n");
 		}
 		else
 		{
-			commandTime[commandNum] =  argAsInt(2);//milliseconds
+			commandTime[cNum] =  argAsInt(2);//milliseconds
 
 			//the lowest 16 bits of argAsInt(3) represent the state of each DO channel
 			//DO0 is LSB, DO16 is MSB
-			DO_Command[commandNum]=argAsInt(3);
-
-		/*
-			//the lowest 16 bits of argAsInt(3) represent the state of each DO channel
-			//DO0 is LSB, DO16 is MSB
-			for(channel=0;channel<TOTAL_DO_CHANNELS;channel++)
-			{
-				//DO_Command[commandNum] = DO_Command[commandNum] & (1<<channel);//mask out this channel
-				DO_Command[commandNum] = (argAsInt(3) & (1<<channel)) >>channel;
-				//printf("DO%u:%u\r\n",channel,DO_Command[commandNum][channel]);
-			}
-		 */
+			DO_Command[cNum]=argAsInt(3);
+			Spark_Command[cNum] = argAsInt(4);
 
 			for(channel=0;channel<TOTAL_SERVO_CHANNELS;channel++)
 			{
-				Servo_Command[commandNum][channel] = argAsInt(4+channel);
+				Servo_Command[cNum][channel] = argAsInt(5+channel);
 			}
 
-
 		}
-
 	}
 	else
 	{
-		//printf("Wrong number of arguments.  Sequence must be of form:\r\n");
-		//printf("CommandNum, milliseconds, %u DO bits, %u servo\r\n", TOTAL_DO_CHANNELS, TOTAL_SERVO_CHANNELS);
-
 		//return the entire command sequence
 
 		printf("Time:");
-		for(commandNum=0;commandNum<MAX_COMMANDS;commandNum++)
+		for(cNum=0;cNum<MAX_COMMANDS;cNum++)
 		{
-			printf(" %u", commandTime[commandNum] );
+			printf(" %u", commandTime[cNum] );
 		}
 		printf("\r\n");
 
 		for(channel=0;channel<TOTAL_DO_CHANNELS;channel++)
 		{
 			printf("DO%u:",channel);
-			for(commandNum=0;commandNum<MAX_COMMANDS;commandNum++)
+			for(cNum=0;cNum<MAX_COMMANDS;cNum++)
 			{
-				printf(" %u", (DO_Command[commandNum] >> channel) & 1);
+				printf(" %u", (DO_Command[cNum] >> channel) & 1);
 			}
 			printf("\r\n");
 		}
 
+		printf("Spark PWM:");
+		for(cNum=0;cNum<MAX_COMMANDS;cNum++)
+		{
+			printf(" %u",Spark_Command[cNum]);
+		}
+		printf("\r\n");
+
 		for(channel=0;channel<TOTAL_SERVO_CHANNELS;channel++)
 		{
-			printf("DO%u:",channel);
-			for(commandNum=0;commandNum<MAX_COMMANDS;commandNum++)
+			printf("Servo %u:",channel);
+			for(cNum=0;cNum<MAX_COMMANDS;cNum++)
 			{
-				printf(" %u",Servo_Command[commandNum][channel]);
+				printf(" %u",Servo_Command[cNum][channel]);
 			}
 			printf("\r\n");
 		}
@@ -452,7 +423,7 @@ static int _F5_Handler (void)
 }
 
 
-//setup the Redline Triggers
+//setred: setup the Redline Triggers
 static int _F6_Handler (void)
 {
 	uint8_t RLnum;
@@ -467,6 +438,8 @@ static int _F6_Handler (void)
 			redlineChannel[RLnum] = argAsInt(4);
 			redlineMin[RLnum] = argAsInt(5);
 			redlineMax[RLnum] = argAsInt(6);
+
+			//printf("Current Value = %u\r\n", dataSendBuffer[redlineChannel[RLnum]]);
 		}
 	}
 	else
@@ -474,7 +447,6 @@ static int _F6_Handler (void)
 		printf("Wrong number of arguments.  Sequence must be of form:\r\n");
 		printf("RLnum, RLstart, RLend, channel, min, max\r\n");
 	}
-
 
 	return 0;
 }
@@ -496,28 +468,22 @@ static int _F7_Handler (void)
 static int _F8_Handler (void)
 {
 
-	//Board_LED_Set(0,1);
-	//Board_LED_Set(1,0);
-	//Board_LED_Set(2,1);
-
 	if(argAsInt(1) == 1)
 	{
-		// setup Emergency Stop task
-		xTaskCreate(vEStopTask, (signed char *) "vEStopTask",
-					configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 7UL),
-					&vEStopTaskHandle);
-
 
 		// Control Digital Outputs and Servos during run time
-		xTaskCreate(vFireControlTask, (signed char *) "vFireControlTask",
-					configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 8UL),
-					&vFireControlTaskHandle);
+		//xTaskCreate(vFireControlTask, (signed char *) "vFireControlTask",
+		//			configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 7UL),
+		//			&vFireControlTaskHandle);
+
+		vTaskResume(vFireControlTaskHandle);
 
 	}
 	else
 	{
 		//trigger emergency stop
-		emergencyStop = 1;
+		//emergencyStop = 1;
+		redlineNumber=9;//manual abort
 		vTaskResume(vEStopTaskHandle);//make sure data is being acquired
 
 	}
@@ -769,7 +735,59 @@ static int _F13_Handler (void)
 	return 0;
 }
 
+//pwm
+static int _F14_Handler (void)
+{
+	uint8_t arg1;
+	uint32_t arg2;
 
+	arg1 = argAsInt(1);
+
+	if(NumberOfArguments() == 1)
+	{
+		if(arg1 == 1)
+		{
+			PWM_Enable(1);
+			printf("PWM Started\r\n");
+		}
+		else
+		{
+			PWM_Enable(0);
+			printf("PWM Stopped\r\n");
+		}
+	}
+	else
+	{
+		arg2 = argAsInt(2);
+		if((arg1 > 0) && (arg1 < 7))
+		{
+			if((arg2 < 100) && (arg2 > 0))
+			{
+				PWM_SetDutyCycle(arg1, arg2);
+				printf("PWM %u duty cycle set to %ul\r\n", arg1, (uint8_t)arg2);
+			}
+			else
+			{
+				printf("duty cycle out of bounds\r\n");
+			}
+		}
+		else
+		{
+			if((arg2 > 0) && (arg2 < 15000) )
+			{
+				PWM_SetFrequency(arg2);
+				printf("PWM frequency set to %ul\r\n", arg2);
+			}
+			else
+			{
+				printf("frequency out of bounds\r\n", arg2);
+			}
+		}
+	}
+
+
+	return 0;
+}
 
 
 /** @} */

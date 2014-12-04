@@ -286,6 +286,7 @@ void RunCommand( void )
 		{
 			if(strcmp(CurrentCommandArray[0], (CommonCommandList[i].name) ) == 0)
 			{
+				//Board_LED_Set(0, false);
 				if(numArgs < CommonCommandList[i].minArgs)
 				{
 					if(runningData==0) printf("Not enough arguments\r\r\n");
@@ -296,6 +297,7 @@ void RunCommand( void )
 				}
 				else
 				{
+					//Board_LED_Set(0, true);
 					((void(*)(void))CommonCommandList[i].handler)();
 				}
 				

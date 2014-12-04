@@ -30,4 +30,5 @@ void PCA9535_SetOutputs(uint8_t *OutputStates);
 
 void PCA9535_SetOutput(uint8_t OutputNumber, uint8_t OutputState);
 
+
 #endif /* PCA9535_H_ */

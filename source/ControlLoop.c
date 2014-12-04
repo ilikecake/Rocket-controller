@@ -8,7 +8,7 @@ void InitControl(void)
 	int channel;
 
 	//setup the fire sequence
-	commandMax=MAX_COMMANDS-1;
+	//commandMax=MAX_COMMANDS-1;
 	
 	//initialize command sequence to all off all the time
 	for(i=0;i<=MAX_COMMANDS;i++)
@@ -17,6 +17,7 @@ void InitControl(void)
 		commandTime[i] = 0;//milliseconds
 
 		DO_Command[i] = 0;//sets all DO channels to 0
+		Spark_Command[i] =0;//keeps spark always off
 
 		for(channel=0;channel<=TOTAL_SERVO_CHANNELS;channel++)
 		{
@@ -35,13 +36,15 @@ void InitControl(void)
 		redlineMin[i] =0;		//channel must be above this or the test will be aborted
 	}
 
-
+	redlineNumber=0xFE;//reset null redline number value
 	redlinesEnabled = 1;		//redlines active
 	emergencyStop = 0;		//reset Emergency stop flag to not triggered
 	runningControl = 0;		//not running a test sequence
 	runningData = 0;		//not reading data from TC chip and A/D
 	activeSaveData=0;	//not saving data to flash memory
 
+	lastServoCommand[0]=0;
+	lastServoCommand[1]=0;
 
 	//give values to servo position
 	for (i=0;i<TOTAL_SERVO_CHANNELS;i++)
@@ -190,6 +193,7 @@ void ReadData(void)
 		//	dataSendBuffer[AI_CHIPS*AI_CHANNELS_PER_CHIP+2*TC_CHIPS*TC_CHANNELS_PER_CHIP+i] = dataServo[i];
 		//	i++;
 		//}
+		i=i+4;
 
 		dataSendBuffer[i]=DO_Command[commandNum];//current DO state
 		i++;
@@ -201,14 +205,15 @@ void ReadData(void)
 		dataSendBuffer[i]=dataSendBuffer[i] | (activeSaveData<<2);//bit 2: activeSaveData, saving data to flash memory
 		dataSendBuffer[i]=dataSendBuffer[i] | (redlinesEnabled<<3);//bit 3: redlinesEnabled, redlines active
 		dataSendBuffer[i]=dataSendBuffer[i] | (emergencyStop<<4);//bit 4: emergencyStop, reset Emergency stop flag
+		dataSendBuffer[i]=dataSendBuffer[i] | (Spark_Command[commandNum]<<5);//bit 5: state of spark PWM driver
 		i++;
 
-		dataSendBuffer[i]=45;//spare
+		dataSendBuffer[i]=(uint16_t) redlineNumber;//45;//spare
 		i++;
-		dataSendBuffer[i]=46;//spare
+		dataSendBuffer[i]=i;//46;//spare
 
 
-		//CheckRedlines();
+		CheckRedlines();
 
 		//give data buffer semaphore
 		xSemaphoreGive(dataSemaphore);
@@ -225,27 +230,38 @@ void ReadData(void)
 
 void CheckRedlines()
 {
-
+	//check each redline condition to see if it is violated
 	int n;
 	if (runningControl==1 && redlinesEnabled==1)
 	{
 		for(n=0;n<MAX_REDLINES;n++)
 		{
 			//check to see if redline has been setup
-			if (redlineTimeEnd[n]>>=0){
+			//if (redlineTimeEnd[n]>0)
+			//{
+
+					if (redlineMax[n] < dataSendBuffer[redlineChannel[n]])
+					{
+						redlineNumber = n;//store index of redline that ended the test
+						vTaskResume(vEStopTaskHandle);//resume Redline task that is poised to shut everything down
+					}
 
 				//check to see if redline is within active time range
-				if (redlineTimeStart[n] <= dataSendTime[1] && redlineTimeEnd[n] >= dataSendTime[1])
+				if ((redlineTimeStart[n] <= dataSendTime[1]) && (redlineTimeEnd[n] > dataSendTime[1]))
 				{
+
+
+					/*
 					//check to see if value is outside of safe range
 					if ( (redlineMin[n] > dataSendBuffer[redlineChannel[n]]) || (redlineMax[n] < dataSendBuffer[redlineChannel[n]]) )
 					{//abort the test
-						emergencyStop = 1;
-						vTaskResume(vEStopTaskHandle);//make sure data is being acquired
-					}
-
+						//emergencyStop = 1;
+						redlineNumber = n;//store index of redline that ended the test
+						vTaskResume(vEStopTaskHandle);//resume Redline task that is poised to shut everything down
+					}*/
 				}
-			}
+
+			//}
 		}
 	}
 
@@ -253,33 +269,91 @@ void CheckRedlines()
 }
 
 
+void SetServoPosition(uint8_t servoNum, uint16_t position)
+{
+	//send position commands to servos.  this will take a while
+	//vTaskResume(vServoWriteTaskHandle);
+	//servoNum=0 is N2O valve (valveID = 1)
+	//servoNum=1 is Fuel valve (valveID = 2)
+	uint8_t servoID;
+	servoID=servoNum+1;
+
+	if (servoExists[servoNum]==1)
+	{
+		if( xSemaphoreTake( servoSemaphore, ( portTickType ) 200 ) == pdTRUE )	//take servo semaphore
+		{
+			//only send a new servo command if it is different from previous command
+			if (position != lastServoCommand[servoNum])
+			{
+				MX106T_Set16bit(servoID,SERVO_GOAL_POSITION_16,position);
+			}
+
+			xSemaphoreGive(servoSemaphore);//give back servo semaphore
+			servoCommandFlag = 0;
+			lastServoCommand[servoNum]=position;
+		}
+		else
+		{	//if a servo command failed, trigger an emergency stop
+			vTaskResume(vEStopTaskHandle);
+		}
+	}
+
+	return;
+}
+
 void ReadServo(void)
 {
-	uint8_t i;
-
 	//Read position and torque on both servos.
 	//Allow control loop to take semaphore between servo data requests
+	uint8_t servoNum;
+	uint8_t servoID;
+	uint8_t i;
 
-	if (servoCommandFlag==0)//don't read from servo when a servo command is pending
+	if (1)//(servoCommandFlag==0)//don't read from servo when a servo command is pending
 	{
-		for (i=0;i<TOTAL_SERVO_CHANNELS;i++)
+		for (servoNum=0;servoNum<TOTAL_SERVO_CHANNELS;servoNum++)
 		{
-			//if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
-			//{
-				dataServo[i] = MX106T_Read16bit(1,SERVO_PRESENT_POSITION_16);
+			servoID=servoNum+1;
+			if (servoExists[servoNum]==1)
+			{
+				if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
+				{
+					dataServo[servoNum] = MX106T_Read16bit(servoID,SERVO_PRESENT_POSITION_16);
+					//xSemaphoreGive(servoSemaphore);//give back servo semaphore
+				}
+				else
+				{
+					dataServo[servoNum] = 0;
+				}
+			}
+			else
+			{
+				dataServo[servoNum] = 0;
+			}
+			xSemaphoreGive(servoSemaphore);//give back servo semaphore
 
-				//xSemaphoreGive(servoSemaphore);//give back servo semaphore
-			//}
 		}
-		for (i=0;i<TOTAL_SERVO_CHANNELS;i++)
+		for (servoNum=0;servoNum<TOTAL_SERVO_CHANNELS;servoNum++)
 		{
-			//if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
-			//{
-				dataServo[i] = 61;//MX106T_Read16bit(1,SERVO_PRESENT_LOAD_16);
-				//dataServo[TOTAL_SERVO_CHANNELS+i] = 61;
+			servoID=servoNum+1;
+			if (servoExists[servoNum]==1)
+			{
+				if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
+				{
+					dataServo[servoNum+TOTAL_SERVO_CHANNELS] = MX106T_Read16bit(servoID,SERVO_PRESENT_LOAD_16);
+					//xSemaphoreGive(servoSemaphore);//give back servo semaphore
+				}
+				else
+				{
+					dataServo[servoNum+TOTAL_SERVO_CHANNELS] = 0;
+				}
+			}
+			else
+			{
+				dataServo[servoNum+TOTAL_SERVO_CHANNELS] = 0;
+			}
+			xSemaphoreGive(servoSemaphore);//give back servo semaphore
 
-				//xSemaphoreGive(servoSemaphore);//give back servo semaphore
-			//}
 		}
 
 
@@ -288,7 +362,7 @@ void ReadServo(void)
 		{
 			for (i=0;i<TOTAL_SERVO_CHANNELS*2;i++)
 			{
-				dataSendBuffer[AI_CHIPS*AI_CHANNELS_PER_CHIP+2*TC_CHIPS*TC_CHANNELS_PER_CHIP+i] = dataServo[i];
+				dataSendBuffer[2*AI_CHANNELS_PER_CHIP+TC_CHIPS*TC_CHANNELS_PER_CHIP+1+i] = dataServo[i];
 			}
 			xSemaphoreGive(dataSemaphore);//give back Data semaphore
 		}
