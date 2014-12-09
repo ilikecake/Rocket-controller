@@ -17,8 +17,8 @@
 
 void InitPWM(void)
 {
-	uint32_t ClkRate;
-	uint32_t FreqInHz;
+	//uint32_t ClkRate;
+	//uint32_t FreqInHz;
 
 	//Enable the clock to the PWM module
 	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_PWM1);
@@ -38,14 +38,15 @@ void InitPWM(void)
 
 	LPC_PWM1->TCR = 0x02;	//Reset PWM timer until this bit is set to zero
 
-	FreqInHz=50;
-	LPC_PWM1->PR = ClkRate/100/FreqInHz;//set frequency of PWM (uses the max count set below)
+	PWM_SetFrequency(50);
+	//FreqInHz=50;
+	//LPC_PWM1->PR = ClkRate/100/FreqInHz;//set frequency of PWM (uses the max count set below)
 	LPC_PWM1->CTCR = 0;		//PWM in timer mode
 
-	LPC_PWM1->MR[0] = 100;//set max count
-	LPC_PWM1->MR4 = 78;//set duty cycle of PWM4
-	LPC_PWM1->MR5 = 53;//set duty cycle of PWM5
-	LPC_PWM1->MR6 = 27;//set duty cycle of PWM6
+	LPC_PWM1->MR[0] = 100;	//set max count
+	LPC_PWM1->MR4 = 50;		//set duty cycle of PWM4
+	LPC_PWM1->MR5 = 50;		//set duty cycle of PWM5
+	LPC_PWM1->MR6 = 50;		//set duty cycle of PWM6
 
 	LPC_PWM1->MCR = 2;
 
@@ -63,6 +64,7 @@ void InitPWM(void)
 void PWM_SetFrequency(uint32_t FreqInHz)
 {
 	uint32_t ClkRate;
+	uint8_t IsRunning = 0;
 
 	//TODO: The divider is set to 8 in the initialization function and not changed here. This gives us an upper limit of ~150kHz at a 120MHz core clock speed. If a higher PWM speed is desired, the prescaler should be changed here.
 	//TODO: The frequency to be set is also dependent on the MR[0] value. It is currently hard coded as 100.
@@ -70,9 +72,18 @@ void PWM_SetFrequency(uint32_t FreqInHz)
 
 	ClkRate = Chip_Clock_GetPeripheralClockRate(SYSCTL_PCLK_PWM1);
 
+	if(LPC_PWM1->TCR == 9)
+	{
+		IsRunning = 1;
+	}
+
 	LPC_PWM1->TCR = 0x02;
 	LPC_PWM1->PR = ClkRate/100/FreqInHz;
-	LPC_PWM1->TCR = 9;	//Enable PWM counter, enable PWM
+
+	if(IsRunning == 1)
+	{
+		LPC_PWM1->TCR = 9;	//Enable PWM counter, enable PWM
+	}
 
 	return;
 }

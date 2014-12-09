@@ -30,7 +30,7 @@ void AD7606Init(void)
 	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_1_CS_PORT,		AD7606_1_CS_PIN,		true);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_1_ADBUSY_PORT,	AD7606_1_ADBUSY_PIN,	false);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_1_ADFDATA_PORT,	AD7606_1_ADFDATA_PIN,	false);
-/*
+
 	//Setup pins for chip 2
 	Chip_IOCON_PinMux(LPC_IOCON, AD7606_2_ADSTART_PORT,	AD7606_2_ADSTART_PIN,	IOCON_MODE_INACT, IOCON_FUNC0);
 	Chip_IOCON_PinMux(LPC_IOCON, AD7606_2_CS_PORT,		AD7606_2_CS_PIN,		IOCON_MODE_INACT, IOCON_FUNC0);
@@ -41,7 +41,8 @@ void AD7606Init(void)
 	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_2_CS_PORT,		AD7606_2_CS_PIN,		true);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_2_ADBUSY_PORT,	AD7606_2_ADBUSY_PIN,	false);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, AD7606_2_ADFDATA_PORT,	AD7606_2_ADFDATA_PIN,	false);
-*/
+
+
 	//Setup pins for chip 3
 	Chip_IOCON_PinMux(LPC_IOCON, AD7606_3_ADSTART_PORT,	AD7606_3_ADSTART_PIN,	IOCON_MODE_INACT, IOCON_FUNC0);
 	Chip_IOCON_PinMux(LPC_IOCON, AD7606_3_CS_PORT,		AD7606_3_CS_PIN,		IOCON_MODE_INACT, IOCON_FUNC0);
@@ -56,31 +57,31 @@ void AD7606Init(void)
 
 	//Conversion control pin idles low
 	AD7606_Start(1,false);
-	//AD7606_Start(2,false);
+	AD7606_Start(2,false);
 	AD7606_Start(3,false);
 
 	//Set up options for A/D1 in the I/O expander
 	TCA9554A_SetConfig(AD7606_1_IO_EXP_ADDR, 0x18);//~((1<<AD7606_OS0_BIT) | (1<<AD7606_OS1_BIT) | (1<<AD7606_OS2_BIT) | (1<<AD7606_STANDBY_BIT) | (1<<AD7606_RANGE_BIT) | (1<<AD7606_RESET_BIT)) );
-	//TCA9554A_SetConfig(AD7606_2_IO_EXP_ADDR, 0x18);
+	TCA9554A_SetConfig(AD7606_2_IO_EXP_ADDR, 0x18);
 	TCA9554A_SetConfig(AD7606_3_IO_EXP_ADDR, 0x18);
 
-	AD7606SetOSMode(1,AD7606_OS_RATIO_4);//set how many samples will be filtered to get one output
+	AD7606SetOSMode(1,AD7606_OS_RATIO_64);//set how many samples will be filtered to get one output
 	AD7606SetPowerMode(1,AD7606_POWER_MODE_ON);
-	AD7606SetRange(1,AD7606_RANGE_5V);
+	AD7606SetRange(1,AD7606_RANGE_10V);
 	AD7606Reset(1);
 
-	/*AD7606SetOSMode(2,AD7606_OS_RATIO_4);//set how many samples will be filtered to get one output
+	AD7606SetOSMode(2,AD7606_OS_RATIO_64);//set how many samples will be filtered to get one output
 	AD7606SetPowerMode(2,AD7606_POWER_MODE_ON);
 	AD7606SetRange(2,AD7606_RANGE_5V);
 	AD7606Reset(2);
-*/
-	AD7606SetOSMode(3,AD7606_OS_RATIO_4);//set how many samples will be filtered to get one output
+
+	AD7606SetOSMode(3,AD7606_OS_RATIO_64);//set how many samples will be filtered to get one output
 	AD7606SetPowerMode(3,AD7606_POWER_MODE_ON);
 	AD7606SetRange(3,AD7606_RANGE_5V);
 	AD7606Reset(3);
 
 	AD7606_Select(1,0);
-	//AD7606_Select(2,0);
+	AD7606_Select(2,0);
 	AD7606_Select(3,0);
 
 	ADC_Status = AD7606_STATUS_READY;

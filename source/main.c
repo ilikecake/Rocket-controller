@@ -81,17 +81,19 @@ void vEStopTask(void * pvParameters ) {
 
 			//Set all outputs to emergency state
 			Board_DO_Set((uint16_t) 0);//set all outputs to 0
-
 			PWM_Enable(0);//turn off spark
 
 			//set servos to closed
 			servoCommandFlag = 1;//prevent ReadServo from starting a read that will conflict with the servo command timing
-			SetServoPosition(0, 50);//Servo_Command[MAX_COMMANDS-1][0]);//N2O Valve
-			SetServoPosition(1, 50);//Servo_Command[MAX_COMMANDS-1][1]);//Fuel Valve
+			SetServoPosition(0, 2050);//Servo_Command[MAX_COMMANDS-1][0]);//N2O Valve
+			vTaskDelay(5);
+			SetServoPosition(1, 2050);//Servo_Command[MAX_COMMANDS-1][1]);//Fuel Valve
 
 			//send close signals again to make sure they get through
-			SetServoPosition(0, 50);//Servo_Command[MAX_COMMANDS-1][0]);//N2O Valve
-			SetServoPosition(1, 50);//Servo_Command[MAX_COMMANDS-1][1]);//Fuel Valve
+			vTaskDelay(5);
+			SetServoPosition(0, 2050);//Servo_Command[MAX_COMMANDS-1][0]);//N2O Valve
+			vTaskDelay(5);
+			SetServoPosition(1, 2050);//Servo_Command[MAX_COMMANDS-1][1]);//Fuel Valve
 			servoCommandFlag=0;
 
 
@@ -119,12 +121,13 @@ void vFireControlTask(void * pvParameters ) {
 		Board_LED_Set(2, false);
 
 		//set initial DO states
-		Board_DO_Set(DO_Command[0]);//set all DO channel states at once
+		//Board_DO_Set(DO_Command[0]);//set all DO channel states at once
 		PWM_Enable(0);//set spark to initial state
+		PWM_SetFrequency(50);
 
 		//set initial servo positions
-		SetServoPosition(0, Servo_Command[0][0]);//N2O Valve
-		SetServoPosition(1, Servo_Command[0][1]);//Fuel Valve
+		//SetServoPosition(0, Servo_Command[0][0]);//N2O Valve
+		//SetServoPosition(1, Servo_Command[0][1]);//Fuel Valve
 
 
 		//Ensure that a valid control sequence has been uploaded
@@ -145,7 +148,7 @@ void vFireControlTask(void * pvParameters ) {
 
 
 
-		while ((commandNum < MAX_COMMANDS) && (commandTime[commandNum]>0) && emergencyStop == 0) {
+		while ((commandNum < MAX_COMMANDS) && (commandTime[commandNum] >= 0) && emergencyStop == 0) {
 			tickTime = xTaskGetTickCount();
 			if (fireStartTime+commandTime[commandNum] > tickTime)//wait for commandTime if we haven't passed it yet
 			{
@@ -158,7 +161,6 @@ void vFireControlTask(void * pvParameters ) {
 					servoCommandFlag = 1;//prevent ReadServo from starting a read that will conflict with the servo command timing
 					tickTime = xTaskGetTickCount();
 				}
-
 				//wait for next command time
 				interval=(fireStartTime+commandTime[commandNum]) - tickTime;
 				vTaskDelayUntil(&tickTime,interval);
@@ -168,29 +170,44 @@ void vFireControlTask(void * pvParameters ) {
 			{
 				//set digital outputs
 				Board_DO_Set(DO_Command[commandNum]);//set all DO channel states at once
-				PWM_Enable(Spark_Command[commandNum]);//set spark state
-				//PWM_Enable(1);
+				//printf("Set DO(%u): %u\r\n",commandNum, DO_Command[commandNum]);
+				vTaskDelay(5);
+				if (Spark_Command[commandNum]==1)
+				{
+					PWM_Enable(1);//set spark state
+				}
+				else
+				{
+					PWM_Enable(0);//set spark state
+				}
 
+				//printf("Set spark(%u): %u\r\n",commandNum, Spark_Command[commandNum]);
+
+				servoCommandFlag = 1;
+				vTaskDelay(5);
 				//send position commands to servos.  this will take a while
 				SetServoPosition(0, Servo_Command[commandNum][0]);//N2O Valve
+				vTaskDelay(5);
 				SetServoPosition(1, Servo_Command[commandNum][1]);//Fuel Valve
+				servoCommandFlag = 0;
 
 				commandNum++;
 			}
 		}
 
 
-		if (emergencyStop==0)
+		/*if (emergencyStop==0)
 		{
 			//set final DO states
-			Board_DO_Set(DO_Command[commandNum]);//set all DO channel states at once
-			PWM_Enable(Spark_Command[commandNum]);//set spark to final state
+			Board_DO_Set(DO_Command[commandNum-1]);//set all DO channel states at once
+			PWM_Enable(Spark_Command[commandNum-1]);//set spark to final state
+			//PWM_Enable(1);
 
 			//set final servo positions
-			SetServoPosition(0, Servo_Command[commandNum][0]);//N2O Valve
-			SetServoPosition(1, Servo_Command[commandNum][1]);//Fuel Valve
+			SetServoPosition(0, Servo_Command[commandNum-1][0]);//N2O Valve
+			SetServoPosition(1, Servo_Command[commandNum-1][1]);//Fuel Valve
 
-		}
+		}*/
 
 		runningControl = 0;
 		redlinesEnabled = 0;
@@ -209,21 +226,24 @@ void vFireControlTask(void * pvParameters ) {
 void vDataAquisitionTask(void * pvParameters ) {
 	portTickType tickTime;
 	portTickType interval;
-
-	uint8_t i;
+/*
+	uint8_t servoID;
 	 //check to see if servos are connected
-	for(i=0;i<TOTAL_SERVO_CHANNELS;i++)
+	for(servoID=1;servoID<=TOTAL_SERVO_CHANNELS;servoID++)
 	{
-		servoExists[i] = MX106T_Ping(i+1);//servo IDs start at 1 and count up
-		if (servoExists[i]==1)
+		servoExists[servoID-1] = MX106T_Ping(servoID);//servo IDs start at 1 and count up, but servoExists starts at 0
+		if (servoExists[servoID-1]==1)
 		{
-			printf("Servo %u detected\r\n",i);
+			printf("Servo %u detected\r\n",servoID);
 		}
 		else
 		{
-			printf("Servo %u not detected\r\n",i);
+			printf("Servo %u not detected\r\n",servoID);
 		}
+
+		vTaskDelay(5);
 	}
+*/
 
 	vTaskSuspend( NULL );//suspend current task
 
@@ -275,17 +295,6 @@ void vServoReadTask(void * pvParameters ) {
 		vTaskSuspend( NULL );//suspend current task
 	}
 }
-
-/* This task writes commands to servo motors */
-/*void vServoWriteTask(void * pvParameters ) {
-	vTaskSuspend( NULL );//suspend current task
-	while (1)
-	{
-		ReadServo();
-		vTaskSuspend( NULL );//suspend current task
-	}
-}
-*/
 
 
 /* This task looks for waiting commands from UART and runs them */
@@ -350,7 +359,7 @@ int main(void)
 				256, NULL, (tskIDLE_PRIORITY + 3UL),
 				&vDataSendTaskHandle);
 
-	// Read Stats from servo motors
+	// Read Stats from servo motors: is immediately suspended
 	xTaskCreate(vServoReadTask, (signed char *) "vDataSendTask",
 				configMINIMAL_STACK_SIZE, NULL,
 				(tskIDLE_PRIORITY + 4UL),
@@ -369,7 +378,7 @@ int main(void)
 
 	// Control Digital Outputs and Servos during run time
 	xTaskCreate(vFireControlTask, (signed char *) "vFireControlTask",
-				configMINIMAL_STACK_SIZE, NULL, (tskIDLE_PRIORITY + 7UL),
+				256, NULL, (tskIDLE_PRIORITY + 7UL),
 				&vFireControlTaskHandle);
 
 	// setup Emergency Stop task

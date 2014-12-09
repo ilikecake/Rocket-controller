@@ -213,7 +213,8 @@ void ReadData(void)
 		dataSendBuffer[i]=i;//46;//spare
 
 
-		CheckRedlines();
+		CheckRedlines();//check redline conditions and set heater state
+
 
 		//give data buffer semaphore
 		xSemaphoreGive(dataSemaphore);
@@ -234,39 +235,37 @@ void CheckRedlines()
 	int n;
 	if (runningControl==1 && redlinesEnabled==1)
 	{
-		for(n=0;n<MAX_REDLINES;n++)
+		for(n=1;n<MAX_REDLINES;n++)
 		{
-			//check to see if redline has been setup
-			//if (redlineTimeEnd[n]>0)
-			//{
-
-					if (redlineMax[n] < dataSendBuffer[redlineChannel[n]])
-					{
-						redlineNumber = n;//store index of redline that ended the test
-						vTaskResume(vEStopTaskHandle);//resume Redline task that is poised to shut everything down
-					}
-
-				//check to see if redline is within active time range
-				if ((redlineTimeStart[n] <= dataSendTime[1]) && (redlineTimeEnd[n] > dataSendTime[1]))
-				{
-
-
-					/*
-					//check to see if value is outside of safe range
-					if ( (redlineMin[n] > dataSendBuffer[redlineChannel[n]]) || (redlineMax[n] < dataSendBuffer[redlineChannel[n]]) )
-					{//abort the test
-						//emergencyStop = 1;
-						redlineNumber = n;//store index of redline that ended the test
-						vTaskResume(vEStopTaskHandle);//resume Redline task that is poised to shut everything down
-					}*/
+			//check to see if redline is within active time range
+			if ((redlineTimeStart[n] <= dataSendTime[1]) && (redlineTimeEnd[n] > dataSendTime[1]))
+			{
+				//check to see if value is outside of safe range
+				if ( (redlineMin[n] > dataSendBuffer[redlineChannel[n]]) || (redlineMax[n] < dataSendBuffer[redlineChannel[n]]) )
+				{//abort the test
+					redlineNumber = n;//store index of redline that ended the test
+					vTaskResume(vEStopTaskHandle);//resume Redline task that is poised to shut everything down
 				}
+			}
 
-			//}
 		}
+	}
+	else // when test is not running
+	{	//check pressure in N2O tank and turn on heater if it is too high or low
+		if (redlineMin[0] > dataSendBuffer[redlineChannel[0]])
+		{
+			PCA9535_SetOutput(DO_HEATER, 1);//turn on heater
+		}
+		else if	(redlineMax[0] < dataSendBuffer[redlineChannel[0]])
+		{
+			PCA9535_SetOutput(DO_HEATER, 0);//turn off heater
+		}
+
 	}
 
 	return;
 }
+
 
 
 void SetServoPosition(uint8_t servoNum, uint16_t position)
@@ -280,22 +279,21 @@ void SetServoPosition(uint8_t servoNum, uint16_t position)
 
 	if (servoExists[servoNum]==1)
 	{
-		if( xSemaphoreTake( servoSemaphore, ( portTickType ) 200 ) == pdTRUE )	//take servo semaphore
-		{
+		//if( xSemaphoreTake( servoSemaphore, ( portTickType ) 200 ) == pdTRUE )	//take servo semaphore
+		//{
 			//only send a new servo command if it is different from previous command
 			if (position != lastServoCommand[servoNum])
 			{
 				MX106T_Set16bit(servoID,SERVO_GOAL_POSITION_16,position);
 			}
 
-			xSemaphoreGive(servoSemaphore);//give back servo semaphore
-			servoCommandFlag = 0;
+			//xSemaphoreGive(servoSemaphore);//give back servo semaphore
 			lastServoCommand[servoNum]=position;
-		}
-		else
-		{	//if a servo command failed, trigger an emergency stop
-			vTaskResume(vEStopTaskHandle);
-		}
+		//}
+		//else
+		//{	//if a servo command failed, trigger an emergency stop
+		//	vTaskResume(vEStopTaskHandle);
+		//}
 	}
 
 	return;
@@ -308,6 +306,7 @@ void ReadServo(void)
 	uint8_t servoNum;
 	uint8_t servoID;
 	uint8_t i;
+	uint8_t msg;
 
 	if (1)//(servoCommandFlag==0)//don't read from servo when a servo command is pending
 	{
@@ -316,21 +315,21 @@ void ReadServo(void)
 			servoID=servoNum+1;
 			if (servoExists[servoNum]==1)
 			{
-				if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
-				{
-					dataServo[servoNum] = MX106T_Read16bit(servoID,SERVO_PRESENT_POSITION_16);
-					//xSemaphoreGive(servoSemaphore);//give back servo semaphore
-				}
-				else
-				{
-					dataServo[servoNum] = 0;
-				}
+				//if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
+				//{
+					dataServo[servoNum] = MX106T_Read16bit(servoID, SERVO_PRESENT_POSITION_16, &msg);
+				//	xSemaphoreGive(servoSemaphore);//give back servo semaphore
+				//}
+				//else
+				//{
+				//	dataServo[servoNum] = 0;
+				//}
 			}
 			else
 			{
 				dataServo[servoNum] = 0;
 			}
-			xSemaphoreGive(servoSemaphore);//give back servo semaphore
+			//xSemaphoreGive(servoSemaphore);//give back servo semaphore
 
 		}
 		for (servoNum=0;servoNum<TOTAL_SERVO_CHANNELS;servoNum++)
@@ -338,21 +337,21 @@ void ReadServo(void)
 			servoID=servoNum+1;
 			if (servoExists[servoNum]==1)
 			{
-				if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
-				{
-					dataServo[servoNum+TOTAL_SERVO_CHANNELS] = MX106T_Read16bit(servoID,SERVO_PRESENT_LOAD_16);
+				//if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
+				//{
+					//dataServo[servoNum+TOTAL_SERVO_CHANNELS] = MX106T_Read16bit(servoID,SERVO_PRESENT_LOAD_16, &msg);
+					dataServo[servoNum+TOTAL_SERVO_CHANNELS] = MX106T_Read8bit(servoID,SERVO_PRESENT_TEMPERATURE_8, &msg);
 					//xSemaphoreGive(servoSemaphore);//give back servo semaphore
-				}
-				else
-				{
-					dataServo[servoNum+TOTAL_SERVO_CHANNELS] = 0;
-				}
+				//}
+				//else
+				//{
+				//	dataServo[servoNum+TOTAL_SERVO_CHANNELS] = 0;
+				//}
 			}
 			else
 			{
 				dataServo[servoNum+TOTAL_SERVO_CHANNELS] = 0;
 			}
-			xSemaphoreGive(servoSemaphore);//give back servo semaphore
 
 		}
 

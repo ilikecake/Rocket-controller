@@ -60,6 +60,8 @@
 #define SERVO_GOAL_TORQUE_16		0X47
 #define SERVO_GOAL_ACCELERATION_8	0X49
 
+#define SERVO_UART		LPC_UART2
+#define SERVO_BAUD		57600	//servo baud rate
 #define SERVO_DEADBAND	10	//milliseconds it takes to finish processing servo requests
 //#define SERVO_UART LPC_UART0
 
@@ -81,8 +83,8 @@ uint8_t MX106T_Set8bit(uint8_t servoID, uint8_t address, uint8_t value);
 uint8_t MX106T_Set16bit(uint8_t servoID, uint8_t address, uint16_t value);
 
 //read a servo property that is 1 byte
-uint8_t MX106T_Read8bit(uint8_t servoID, uint8_t address);
+uint8_t MX106T_Read8bit(uint8_t servoID, uint8_t address, uint8_t *msg);
 
 //read a servo property that is 2 bytes
-uint16_t MX106T_Read16bit(uint8_t servoID, uint8_t address);
+uint16_t MX106T_Read16bit(uint8_t servoID, uint8_t address, uint8_t *msg);
 

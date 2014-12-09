@@ -91,10 +91,10 @@ void Board_LED_Init(void)
  * Note: LED numbers start at 1						*/
 void Board_DO_Set(uint16_t DOstates)
 {
-	uint8_t states[1];
+	uint8_t states[2];
 
-	states[0] = (uint8_t) (DOstates>>8);
-	states[1] = (uint8_t) (DOstates & 0xFF);
+	states[1] = (uint8_t) (DOstates>>8);
+	states[0] = (uint8_t) (DOstates & 0xFF);
 	PCA9535_SetOutputs(states);
 
 	return;

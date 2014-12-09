@@ -32,7 +32,7 @@
 
 #define MAX_COMMAND_DESCRIPTION_LENGTH		32		//The maximum length of the description and help strings
 #define MAX_COMMAND_LENGTH 					10		//The maximum length of the command string
-#define MAX_ARGS							6		//The maximum number of arguments allowed
+#define MAX_ARGS							8		//The maximum number of arguments allowed
 
 #define CLI_Size 	(MAX_COMMAND_DESCRIPTION_LENGTH*2+MAX_COMMAND_LENGTH*1+6)	//Size (in bytes) of the CommandListItem struct
 

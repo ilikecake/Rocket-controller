@@ -32,6 +32,9 @@
 #define MAX_COMMANDS			16
 #define MAX_REDLINES			5
 
+#define DO_HEATER				15	//DO channel for 120VAC heater power
+#define DO_SPARK1				6	//DO channel for 12VDC power to servo 1
+#define DO_SPARK2				5	//DO channel for 12VDC power to servo 2
 
 
 //Global Variables

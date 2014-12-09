@@ -131,8 +131,8 @@ const char _F13_HELPTEXT[] PROGMEM 		= "mem <1> <2> <3>";
 //Command list
 const CommandListItem AppCommandList[] =
 {
-	{ _F1_NAME,		1,  2,	_F1_Handler,	_F1_DESCRIPTION,	_F1_HELPTEXT	},		//setdo: Set Digital Output Channel
-	{ _F2_NAME,		1,  2,	_F2_Handler,	_F2_DESCRIPTION,	_F2_HELPTEXT	},		//setservo: Set servo position
+	{ _F1_NAME,		0,  2,	_F1_Handler,	_F1_DESCRIPTION,	_F1_HELPTEXT	},		//setdo: Set Digital Output Channel
+	{ _F2_NAME,		1,  4,	_F2_Handler,	_F2_DESCRIPTION,	_F2_HELPTEXT	},		//setservo: Set servo position
 	{ _F3_NAME, 	0,  0,	_F3_Handler,	_F3_DESCRIPTION,	_F3_HELPTEXT	},		//getai: read Analog data
 	{ _F4_NAME, 	0,  1,	_F4_Handler,	_F4_DESCRIPTION,	_F4_HELPTEXT	},		//getTC: read TC data
 	{ _F5_NAME, 	0,  4+TOTAL_SERVO_CHANNELS,	_F5_Handler,	_F5_DESCRIPTION,	_F5_HELPTEXT	},		//sequence: Set Command Sequence
@@ -156,48 +156,148 @@ static int _F1_Handler (void)
 {
 	//uint8_t n;
 
-	uint8_t Reg;
+	uint16_t Reg;
 	uint8_t RegData;
-	//uint8_t FakeOutputData[2];
+	uint8_t servoID;
+
+
+	portTickType tickTime;
+	portTickType interval;
+
 
 	Reg = argAsInt(1);
 	//argAsInt(1) is Digital Output channel
 	//argAsInt(2) is state of valve
 
+	if(NumberOfArguments() == 0)
+	{
+
+		redlinesEnabled = 1;//set flag to show that redlines are active and should be checked when reading data
+		emergencyStop = 0;//the emergency stop has not been triggered
+		redlineNumber=0xFE;//reset null redline number value
+
+		runningControl = 1;//show that control sequence is running
+
+		fireStartTime = xTaskGetTickCount(); //store the time at which the control sequence was started
+		//runningData = 1;//show that data is being read from sensors
+		//vTaskResume(vDataAquisitionTaskHandle);//make sure data is being acquired
+
+		activeSaveData=1; //begin saving data
+		commandNum = 0;//reset sequence to start at command 0
+		servoCommandFlag = 0;  //allow servo to be queried for position
+
+
+		while ((commandNum < MAX_COMMANDS) && (commandTime[commandNum] >= 0) && emergencyStop == 0) {
+			tickTime = xTaskGetTickCount();
+			if (fireStartTime+commandTime[commandNum] > tickTime)//wait for commandTime if we haven't passed it yet
+			{
+				if (fireStartTime+commandTime[commandNum] - SERVO_DEADBAND > tickTime) //if we have time, wake up in time to stop the ReadServo
+				{
+					//wait until SERVO_DEADBAND milliseconds before next command time
+					interval=(fireStartTime+commandTime[commandNum]) - SERVO_DEADBAND - tickTime;
+					vTaskDelayUntil(&tickTime,interval);
+
+					servoCommandFlag = 1;//prevent ReadServo from starting a read that will conflict with the servo command timing
+					tickTime = xTaskGetTickCount();
+				}
+				//wait for next command time
+				interval=(fireStartTime+commandTime[commandNum]) - tickTime;
+				vTaskDelayUntil(&tickTime,interval);
+			}
+
+			if (emergencyStop==0)
+			{
+				//set digital outputs
+				Board_DO_Set(DO_Command[commandNum]);//set all DO channel states at once
+				//printf("Set DO(%u): %u\r\n",commandNum, DO_Command[commandNum]);
+
+				PWM_Enable(Spark_Command[commandNum]);//set spark state
+				//printf("Set spark(%u): %u\r\n",commandNum, Spark_Command[commandNum]);
+
+
+				//send position commands to servos.  this will take a while
+				SetServoPosition(0, Servo_Command[commandNum][0]);//N2O Valve
+				SetServoPosition(1, Servo_Command[commandNum][1]);//Fuel Valve
+				servoCommandFlag = 0;
+
+				commandNum++;
+			}
+		}
+
+		runningControl = 0;
+		redlinesEnabled = 0;
+
+		//wait for a few seconds.  Continue recording data for 5 seconds during shutdown.
+		vTaskDelay(configTICK_RATE_HZ * 5);
+		activeSaveData = 0;//stop recording data
+
+
+
+
+
+	}
+
+
 	if(NumberOfArguments() == 1)
 	{
-		printf("Read Register 0x%02X: ", Reg);
-		PCA9535_ReadReg(Reg, 1, &RegData);
-		printf("0x%02X\r\n", RegData);
+		Board_DO_Set(Reg);
+
+		//printf("Read Register 0x%02X: ", Reg);
+		//PCA9535_ReadReg(Reg, 1, &RegData);
+		//printf("0x%02X\r\n", RegData);
 	}
 	else if(NumberOfArguments() == 2)
 	{
 		RegData = argAsInt(2);
 
-		PCA9535_SetOutput(Reg, RegData);
+		PCA9535_SetOutput((uint8_t)Reg, RegData);
 
-		/*FakeOutputData[0] = Reg;
-		FakeOutputData[1] = argAsInt(2);
-
-		printf("Setting output state to 0x%02X%02X...", FakeOutputData[0], FakeOutputData[1]);
-		PCA9535_SetOutputs(FakeOutputData);
-		printf("Done!\r\n");*/
-	}
-
-
-	/*if(NumberOfArguments() == 2)
-	{
-		Board_DO_Set(argAsInt(1), argAsInt(2));
-	}
-	else
-	{
-		//Turn off all channels
-		for (n=1;n<=TOTAL_DO_CHANNELS;n++)
+		//check to see if I just enabled or disabled a servo
+		if (Reg==DO_SPARK1)
 		{
-			Board_DO_Set(n, 0);
+			servoID=1;
+		}
+		else if (Reg==DO_SPARK2)
+		{
+			servoID=2;
+		}
+		else
+		{servoID=0;}
+
+		if (servoID>0)
+		{
+			if (RegData==1)
+			{
+				if(runningData==0) printf("Detecting servo %u ... ",servoID);
+				vTaskDelay(2000);
+				servoExists[servoID-1] = MX106T_Ping(servoID);//servo IDs start at 1 and count up, but servoExists starts at 0
+				if (servoExists[servoID-1]==1)
+				{
+					if(runningData==0) printf("found.\r\n");
+
+					if (servoID==1)
+					{
+						MX106T_Set8bit(servoID, SERVO_I_GAIN_8,20);
+					}
+					else if (servoID==2)
+					{
+						MX106T_Set8bit(servoID, SERVO_I_GAIN_8,20);
+					}
+				}
+				else
+				{
+					if(runningData==0) printf("Not found\r\n");
+				}
+			}
+			else
+			{
+				if(runningData==0) printf("Servo %u not detected\r\n",servoID);
+			}
 		}
 
-	}*/
+	}
+
+
 	return 0;
 }
 
@@ -206,93 +306,191 @@ static int _F2_Handler (void)
 {
 	//uint16_t pos;
 	uint8_t pos;
-	uint16_t arg2;
+	uint8_t servoID;
+	uint8_t address;
 	uint16_t state;
 
+	uint8_t i;
+	uint8_t msg;
+
 	pos = argAsInt(1);
-
-	if(NumberOfArguments() == 2)
+	if ((NumberOfArguments() > 2) && (pos==1))
 	{
-		arg2 = argAsInt(2);
+		servoID =  argAsInt(2);
+		address =  argAsInt(3);
 
-		switch (pos)
+		if ((address == SERVO_MODEL_NUMBER_16) ||
+				(address == SERVO_CW_ANGLE_LIMIT_16) ||
+				(address == SERVO_CCW_ANGLE_LIMIT_16) ||
+				(address == SERVO_TORQUE_MAX_16) ||
+				(address == SERVO_MULTI_TURN_OFFSET_16) ||
+				(address == SERVO_GOAL_POSITION_16) ||
+				(address == SERVO_GOAL_SPEED_16) ||
+				(address == SERVO_TORQUE_LIMIT_16) ||
+				(address == SERVO_PRESENT_POSITION_16) ||
+				(address == SERVO_PRESENT_SPEED_16) ||
+				(address == SERVO_PRESENT_LOAD_16) ||
+				(address == SERVO_PUNCH_16) ||
+				(address == SERVO_CURRENT_16) ||
+				(address == SERVO_GOAL_TORQUE_16))
 		{
-			case 1:
-				//printf("Set servo position\r\n");
-				MX106T_Set16bit(1, SERVO_GOAL_POSITION_16, arg2);
-				break;
-
-			case 2:
-				printf("Set LED to %d...\r\n", (uint8_t)arg2);
-				MX106T_Set8bit(1, SERVO_LED_8, (uint8_t)arg2);
-				printf("Done!\r\n");
-				break;
-
-			case 3:
-				printf("Servo Temperature: %u\r\n", MX106T_Read8bit(1, SERVO_PRESENT_TEMPERATURE_8));
-				//printf("Servo Temperature: %u\r\n", MX106T_Read8bit(1, SERVO_PRESENT_TEMPERATURE_8));
-
-				//printf("Servo ID: %u\r\n", MX106T_Read8bit(1, SERVO_ID_8));
-				//printf("Servo Baud: %u\r\n", MX106T_Read8bit(1, SERVO_BAUD_RATE_8));
-				break;
-
-			case 4:
-				printf("Get servo position \r\n");
-				state = MX106T_Read16bit(1, SERVO_PRESENT_POSITION_16);
-				printf("Servo position: %u\r\n", state);
-
-				//printf("Set baud rate to 34...\r\n");
-				//MX106T_Set8bit(1, SERVO_ID_8, 1);
-				//MX106T_Set8bit(1, SERVO_BAUD_RATE_8, 34);
-
-				break;
-
-			case 5:
-				printf("Read servo data \r\n");
-				state = MX106T_Read16bit(1, (uint8_t) arg2);
-				printf("Servo data: %u\r\n", state);
-
-				break;
-			case 6:
-				pos=MX106T_Ping((uint8_t) arg2);
-				if (pos==0)
+			if(NumberOfArguments() == 3)
+			{
+				if(runningData==0) printf("Read servo 16bit data... ");
+				state = MX106T_Read16bit(servoID, address, &msg);
+				if (msg==1)
 				{
-					printf("Servo %u does not exist.\r\n",(uint8_t) arg2);
+					if(runningData==0) printf("Servo data: %u\r\n", state);
 				}
 				else
 				{
-					printf("Servo %u exists.\r\n",(uint8_t) arg2);
+					if(runningData==0) printf("Unable to read from ServoID%u\r\n", servoID);
 				}
-				break;
-			case 7:
-				printf("USB detect = %u\r\n",usb_detect);
-				break;
+			}
+			else if (NumberOfArguments() == 4)
+			{
+				state =  argAsInt(4);
+				if(runningData==0) printf("Set servo 16bit... ");
+				msg = MX106T_Set16bit(servoID ,address, state);
+				if (msg==0)
+				{
+					if(runningData==0) printf("complete.\r\n");
+				}
+				else
+				{
+					if(runningData==0) printf("timeout: %u\r\n", msg);
+				}
+			}
+
+		}
+		else
+		{
+			if(NumberOfArguments() == 3)//read 8 bid address
+			{
+				if(runningData==0) printf("Read servo 8bit data... ");
+				state = MX106T_Read8bit(servoID, address, &msg);
+				if (msg==1)
+				{
+					if(runningData==0) printf("Servo data: %u\r\n", state);
+				}
+				else
+				{
+					if(runningData==0) printf("Unable to read from ServoID%u\r\n", servoID);
+				}
+			}
+			else if (NumberOfArguments() == 4)//write to 8 bit address
+			{
+				state =  argAsInt(4);
+				if(runningData==0) printf("Set Servo 8bit... ");
+				msg = MX106T_Set8bit(servoID, address, (uint8_t) state);
+				if (msg==0)
+				{
+					if(runningData==0) printf("complete.\r\n");
+				}
+				else
+				{
+					if(runningData==0) printf("timeout: %u\r\n", msg);
+				}
+			}
+
 		}
 	}
+	else if ((NumberOfArguments() > 2) && (pos==2))
+	{//set servo position
+		servoID =  argAsInt(2);
+		state =  argAsInt(3);
+		if(runningData==0) printf("Set servo position... ");
+		msg = MX106T_Set16bit(servoID, SERVO_GOAL_POSITION_16, state);
 
+		if (msg==0)
+		{
+			if(runningData==0) printf("complete.\r\n");
+		}
+		else
+		{
+			if(runningData==0) printf("error: %u\r\n", msg);
+		}
+	}
+	else if ((NumberOfArguments() == 2) && (pos==3))
+	{//ping servo ID
+		servoID =  argAsInt(2);
+		if (servoID<253)
+		{
+			state=MX106T_Ping(servoID);
+			if (state==0)
+			{
+				if(runningData==0) printf("Servo %u does not exist.\r\n",servoID);
+			}
+			else
+			{
+				if(runningData==0) printf("Servo %u exists.\r\n",servoID);
+			}
+		}
+		else
+		{
+			if(runningData==0) printf("Searching for attached servos...\r\n");
+			for(i=0;i<253;i++)
+			{
+				state=MX106T_Ping(i);
+				if (state==1)
+				{
+					if(runningData==0) printf("Servo %u found.\r\n",i);
+				}
+			}
+			if(runningData==0) printf("Servo search complete.\r\n",i);
+		}
+	}
+	else if ((NumberOfArguments() > 2) && (pos==3))
+	{//change servo ID
+		servoID =  argAsInt(2);
+		state = argAsInt(3);
+		if(servoID>252)
+		{//change ID of all attached servos to arg3
+			MX106T_Set8bit(0xFE, SERVO_ID_8, (uint8_t) state);
+			if(runningData==0) printf("All attached servos set to ID%u\r\n", state);
+		}
+		else
+		{
+			MX106T_Set8bit(servoID , SERVO_ID_8, (uint8_t) state);
+			if(runningData==0) printf("Changed ID of servo %u to ID%u\r\n", servoID, state);
+		}
+	}
+	else if ((NumberOfArguments() > 2) && (pos==3))
+	{//set servo baud rate
+		servoID =  argAsInt(2);
+		state = argAsInt(3);
 
+		//try all baud rates
+		if(runningData==0) printf("Setting baud rate...\r\n");
 
+		Chip_UART_TxCmd(SERVO_UART, DISABLE);
+		Chip_UART_SetBaud(SERVO_UART, 9600);
+		Chip_UART_TxCmd(SERVO_UART, ENABLE);
+		MX106T_Set8bit( servoID, SERVO_BAUD_RATE_8, (uint8_t)state);
 
+		Chip_UART_TxCmd(SERVO_UART, DISABLE);
+		Chip_UART_SetBaud(SERVO_UART, 19200);
+		Chip_UART_TxCmd(SERVO_UART, ENABLE);
+		MX106T_Set8bit( servoID, SERVO_BAUD_RATE_8, (uint8_t)state);
 
-	//printf("Set position to %d...", pos);
-	//MX106T_Set16bit(1, SERVO_GOAL_POSITION_16, pos);
-	//printf("Done!\r\n");
+		Chip_UART_TxCmd(SERVO_UART, DISABLE);
+		Chip_UART_SetBaud(SERVO_UART, 57600);//default servo Baudrate
+		Chip_UART_TxCmd(SERVO_UART, ENABLE);
+		MX106T_Set8bit( servoID, SERVO_BAUD_RATE_8, (uint8_t)state);
 
-	//argAsInt(1) is Digital Output channel
-	//argAsInt(2) is state of valve
-	//if(NumberOfArguments() == 2)
-	//{
+		Chip_UART_TxCmd(SERVO_UART, DISABLE);
+		Chip_UART_SetBaud(SERVO_UART, 115200);
+		Chip_UART_TxCmd(SERVO_UART, ENABLE);
+		MX106T_Set8bit( servoID, SERVO_BAUD_RATE_8, (uint8_t)state);
 
+		Chip_UART_TxCmd(SERVO_UART, DISABLE);
+		Chip_UART_SetBaud(SERVO_UART, SERVO_BAUD);
+		Chip_UART_TxCmd(SERVO_UART, ENABLE);
 
+		if(runningData==0) printf("Servo baud rate set to option %u\r\n", state);
 
-		//Board_DO_Set(argAsInt(1), argAsInt(2));
-	//}
-	//else
-	///{
-		//Turn off all valves
+	}
 
-
-	//}
 	return 0;
 }
 
@@ -308,6 +506,12 @@ static int _F3_Handler (void)
 	for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
 	{
 	 printf("ADC1[%u]: %d counts\r\n", channel, DataSet[channel]);
+	}
+
+	AD7606GetDataSet(2, DataSet);
+	for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
+	{
+	 printf("ADC2[%u]: %d counts\r\n", channel, DataSet[channel]);
 	}
 
 	//get analog data from chip "chipNumber"
@@ -417,6 +621,15 @@ static int _F5_Handler (void)
 			}
 			printf("\r\n");
 		}
+
+		printf("Redlines:");
+		for(cNum=0;cNum<MAX_REDLINES;cNum++)
+		{
+			printf("%u:%u:%u:%u:%u:%u\r\n",cNum, redlineTimeStart[cNum],redlineTimeEnd[cNum],redlineChannel[cNum],redlineMin[cNum],redlineMax[cNum]) ;
+		}
+		//printf("\r\n");
+
+
 	}
 
 	return 0;
@@ -438,6 +651,8 @@ static int _F6_Handler (void)
 			redlineChannel[RLnum] = argAsInt(4);
 			redlineMin[RLnum] = argAsInt(5);
 			redlineMax[RLnum] = argAsInt(6);
+
+			//printf("asdf = %d\r\n", argAsInt(6));
 
 			//printf("Current Value = %u\r\n", dataSendBuffer[redlineChannel[RLnum]]);
 		}
@@ -729,8 +944,8 @@ static int _F13_Handler (void)
 	{
 		vTaskSuspend(vDataAquisitionTaskHandle);//make sure data is being acquired
 		runningData = 0;
-		//vTaskSuspend(vServoReadTask);//make sure data is being acquired
-		//vTaskSuspend(vDataSendTask);//make sure data is being acquired
+		PCA9535_SetOutput(DO_HEATER, 0);//turn off heater
+
 	}
 	return 0;
 }
