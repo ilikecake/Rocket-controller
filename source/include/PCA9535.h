@@ -26,6 +26,8 @@ void PCA9535_WriteReg(uint8_t RegToWrite, uint8_t BytesToWrite, uint8_t *DataBuf
 
 void PCA9535_ReadReg(uint8_t RegToRead, uint8_t BytesToRead, uint8_t *ReadBuffer);
 
+void PCA9535_GetOutputs(uint8_t *OutputStates);
+
 void PCA9535_SetOutputs(uint8_t *OutputStates);
 
 void PCA9535_SetOutput(uint8_t OutputNumber, uint8_t OutputState);

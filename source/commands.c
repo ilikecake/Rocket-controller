@@ -59,9 +59,9 @@ const char _F4_HELPTEXT[]  		= "'gettc' has no parameters";
 
 //Set Command Sequence
 static int _F5_Handler (void);
-const char _F5_NAME[]  			= "sequence";
+const char _F5_NAME[]  			= "seq";
 const char _F5_DESCRIPTION[]  	= "set/get command sequence";
-const char _F5_HELPTEXT[]  		= "'sequence' <1> <2> <3>";//<DO channel> <time> <state>
+const char _F5_HELPTEXT[]  		= "'seq' <1> <2> <3>";//<DO channel> <time> <state>
 
 //Set Redlines
 static int _F6_Handler (void);
@@ -154,12 +154,10 @@ const CommandListItem AppCommandList[] =
 //setdo:	Digital Output control function
 static int _F1_Handler (void)
 {
-	//uint8_t n;
-
+	uint8_t i;
 	uint16_t Reg;
 	uint8_t RegData;
 	uint8_t servoID;
-
 
 	portTickType tickTime;
 	portTickType interval;
@@ -171,7 +169,7 @@ static int _F1_Handler (void)
 
 	if(NumberOfArguments() == 0)
 	{
-
+/*
 		redlinesEnabled = 1;//set flag to show that redlines are active and should be checked when reading data
 		emergencyStop = 0;//the emergency stop has not been triggered
 		redlineNumber=0xFE;//reset null redline number value
@@ -232,7 +230,7 @@ static int _F1_Handler (void)
 		activeSaveData = 0;//stop recording data
 
 
-
+*/
 
 
 	}
@@ -266,11 +264,16 @@ static int _F1_Handler (void)
 
 		if (servoID>0)
 		{
+			servoCommandFlag = 1;//tell data acquisition to stop reading servos
 			if (RegData==1)
 			{
 				if(runningData==0) printf("Detecting servo %u ... ",servoID);
-				vTaskDelay(2000);
-				servoExists[servoID-1] = MX106T_Ping(servoID);//servo IDs start at 1 and count up, but servoExists starts at 0
+				for (i=0;i<20;i++)
+				{
+					vTaskDelay(200);//check for servo every .2 seconds
+					servoExists[servoID-1] = MX106T_Ping(servoID);//servo IDs start at 1 and count up, but servoExists starts at 0
+				}
+
 				if (servoExists[servoID-1]==1)
 				{
 					if(runningData==0) printf("found.\r\n");
@@ -293,6 +296,7 @@ static int _F1_Handler (void)
 			{
 				if(runningData==0) printf("Servo %u not detected\r\n",servoID);
 			}
+			servoCommandFlag = 0;//tell data acquisition to begin reading servos again
 		}
 
 	}
@@ -312,6 +316,8 @@ static int _F2_Handler (void)
 
 	uint8_t i;
 	uint8_t msg;
+
+	servoCommandFlag = 1;//tell data acquisition to stop reading servos
 
 	pos = argAsInt(1);
 	if ((NumberOfArguments() > 2) && (pos==1))
@@ -491,6 +497,8 @@ static int _F2_Handler (void)
 
 	}
 
+	servoCommandFlag = 0;//tell data acquisition to begin reading servos again
+
 	return 0;
 }
 
@@ -553,7 +561,7 @@ static int _F4_Handler (void)
 	return 0;
 }
 
-// Set/Get Command Sequence
+//seq: Set/Get Command Sequence
 static int _F5_Handler (void)
 {
 	//setup the fire sequence
@@ -580,6 +588,11 @@ static int _F5_Handler (void)
 			for(channel=0;channel<TOTAL_SERVO_CHANNELS;channel++)
 			{
 				Servo_Command[cNum][channel] = argAsInt(5+channel);
+			}
+
+			if (cNum > commandFinal)
+			{
+				commandFinal = cNum;
 			}
 
 		}

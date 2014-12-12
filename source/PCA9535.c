@@ -108,6 +108,12 @@ void PCA9535_ReadReg(uint8_t RegToRead, uint8_t BytesToRead, uint8_t *ReadBuffer
 	return;
 }
 
+void PCA9535_GetOutputs(uint8_t *OutputStates)
+{//get all digital outputs at once
+	PCA9535_ReadReg(PCA9535_CMD_OUTPUT_PORT_0, 2, OutputStates);
+	return ;
+}
+
 void PCA9535_SetOutputs(uint8_t *OutputStates)
 {//set all digital outputs at once
 	PCA9535_WriteReg(PCA9535_CMD_OUTPUT_PORT_0, 2, OutputStates);

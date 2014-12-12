@@ -72,7 +72,7 @@ void AD7606Init(void)
 
 	AD7606SetOSMode(2,AD7606_OS_RATIO_64);//set how many samples will be filtered to get one output
 	AD7606SetPowerMode(2,AD7606_POWER_MODE_ON);
-	AD7606SetRange(2,AD7606_RANGE_5V);
+	AD7606SetRange(2,AD7606_RANGE_10V);
 	AD7606Reset(2);
 
 	AD7606SetOSMode(3,AD7606_OS_RATIO_64);//set how many samples will be filtered to get one output
@@ -187,7 +187,7 @@ void AD7606SetRange(uint8_t chipNumber, uint8_t RangeToSet)
 	{
 		bit=0;
 	}
-	else if(RangeToSet == AD7606_RANGE_5V)
+	else if(RangeToSet == AD7606_RANGE_10V)
 	{
 		bit=1;
 	}
@@ -327,7 +327,31 @@ void AD7606GetDataSet(uint8_t chipNumber, uint16_t* DataSet)
 
 	for(i=0; i<8; i++)
 	{
-		DataSet[i] = ((ADInputData[i*2]<<8) + ADInputData[i*2+1]);
+		DataSet[i] = ( (((uint16_t)ADInputData[i*2])<<8) + ((uint16_t)ADInputData[i*2+1]) );
+
+		if (runningData==0)
+		{
+			printf("Ch:%u = %u %u\r\n",i,ADInputData[i*2],ADInputData[i*2+1]);
+		}
+
+		//prevent slightly negative voltages from reading as very high numbers.
+		//This will inadvertently cause legitimately high values to read zero
+		//if(DataSet[i]>65500)
+		//{
+		//	DataSet[i]=DataSet[i]-65536;
+		//}
+
+		/*
+		//bit 16 is sign.  shift data to be centered on 2^15
+		if ((DataSet[i]>>16)==1)
+		{
+			DataSet[i]=65536-DataSet[i];//negative numbers count back from 32768
+		}
+		else
+		{
+			DataSet[i]=DataSet[i]+32768;//positive numbers count up from 32768
+		}*/
+
 		//DataSet[i] = chipNumber*1000+i*10;
 	}
 

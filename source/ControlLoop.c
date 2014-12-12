@@ -56,55 +56,6 @@ void InitControl(void)
 	
 }
 
-/*
-void UpdateCommand(uint32_t tNow)
-{
-	uint8_t channel;
-	if (runningControl==1)
-	{
-		if (commandNum<=commandMax)
-		{
-
-			//wait for next command time
-			if (commandTime[commandNum] <= tNow-fireStartTime)
-			{
-
-				for (channel=0;channel<TOTAL_DO_CHANNELS;channel++)
-				{
-					//DO0 is LSB, DO16 is MSB
-					Board_DO_Set(channel, (DO_Command[commandNum]&(1<<channel))>>channel );
-				}
-
-				Servo(1, Servo_Command[commandNum][0]);     //N2O Valve
-				Servo(2, Servo_Command[commandNum][1]);     //Fuel Valve
-				
-				commandNum++;
-			}
-		}
-		else
-		{	
-
-			////control sequence has ended
-			//LED(2,0);
-			////turn off relays after test
-			//Relay(1,0);					//ign relay
-			//Relay(2,0);					//fuel isolation relay
-			//Relay(3,0);					//N2O isolation relay
-
-			runningControl=0;
-		}
-	}
-	else
-	{
-		//control sequence has ended
-		LED(2,0);
-		runningControl=0;
-	}	
-
-	return;	
-}
-*/
-
 void ReadData(void)
 {	
 	uint8_t channel;
@@ -116,6 +67,7 @@ void ReadData(void)
 	uint16_t dataAnalog[AI_CHIPS*AI_CHANNELS_PER_CHIP];	//store all analog input channels
 	uint16_t dataTC[2*TC_CHIPS*TC_CHANNELS_PER_CHIP];	//store temperature and cold junction  for each TC channel
 	uint32_t averageTjunction;
+	uint8_t dataDOstate[2];
 
 	//record data acquisition start time
 	dataTime[0] = xTaskGetTickCount();
@@ -195,11 +147,12 @@ void ReadData(void)
 		//}
 		i=i+4;
 
-		dataSendBuffer[i]=DO_Command[commandNum];//current DO state
+		//read states of digital output IO expander
+		PCA9535_GetOutputs(dataDOstate);
+		dataSendBuffer[i]=(((uint16_t)dataDOstate[1])<<8) | ((uint16_t)dataDOstate[0]);//DO_Command[commandNum];	//current DO state
 		i++;
 
 		//byte 44: contains RunState, E-State
-
 		dataSendBuffer[i]=runningControl;//bit 0: runningControl
 		dataSendBuffer[i]=dataSendBuffer[i] | (runningData<<1);//bit 1: runningData
 		dataSendBuffer[i]=dataSendBuffer[i] | (activeSaveData<<2);//bit 2: activeSaveData, saving data to flash memory
@@ -307,6 +260,7 @@ void ReadServo(void)
 	uint8_t servoID;
 	uint8_t i;
 	uint8_t msg;
+	uint16_t val;
 
 	if (1)//(servoCommandFlag==0)//don't read from servo when a servo command is pending
 	{
@@ -315,21 +269,12 @@ void ReadServo(void)
 			servoID=servoNum+1;
 			if (servoExists[servoNum]==1)
 			{
-				//if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
-				//{
-					dataServo[servoNum] = MX106T_Read16bit(servoID, SERVO_PRESENT_POSITION_16, &msg);
-				//	xSemaphoreGive(servoSemaphore);//give back servo semaphore
-				//}
-				//else
-				//{
-				//	dataServo[servoNum] = 0;
-				//}
+				dataServo[servoNum] = MX106T_Read16bit(servoID, SERVO_PRESENT_POSITION_16, &msg);
 			}
 			else
 			{
 				dataServo[servoNum] = 0;
 			}
-			//xSemaphoreGive(servoSemaphore);//give back servo semaphore
 
 		}
 		for (servoNum=0;servoNum<TOTAL_SERVO_CHANNELS;servoNum++)
@@ -337,16 +282,19 @@ void ReadServo(void)
 			servoID=servoNum+1;
 			if (servoExists[servoNum]==1)
 			{
-				//if( xSemaphoreTake( servoSemaphore, ( portTickType ) 100 ) == pdTRUE )	//take data buffer semaphore
-				//{
-					//dataServo[servoNum+TOTAL_SERVO_CHANNELS] = MX106T_Read16bit(servoID,SERVO_PRESENT_LOAD_16, &msg);
-					dataServo[servoNum+TOTAL_SERVO_CHANNELS] = MX106T_Read8bit(servoID,SERVO_PRESENT_TEMPERATURE_8, &msg);
-					//xSemaphoreGive(servoSemaphore);//give back servo semaphore
-				//}
-				//else
-				//{
-				//	dataServo[servoNum+TOTAL_SERVO_CHANNELS] = 0;
-				//}
+				val= MX106T_Read16bit(servoID,SERVO_PRESENT_LOAD_16, &msg);
+				//convert to from direction bit to load value centered on 1024
+				if(val < 1024)
+				{
+					val = val + 1024;
+				}
+				else
+				{
+					val = 2047 - val;
+				}
+				dataServo[servoNum+TOTAL_SERVO_CHANNELS] = val;
+
+				//dataServo[servoNum+TOTAL_SERVO_CHANNELS] = MX106T_Read8bit(servoID,SERVO_PRESENT_TEMPERATURE_8, &msg);
 			}
 			else
 			{
@@ -381,6 +329,7 @@ void SendData(void)
 	{
 
 		sendSerialUint8(0xFF, DEBUG_UART);//send data start flag
+		sendSerialUint8(0xFE, DEBUG_UART);//send data start flag
 
 		sendSerialUInt32(dataSendTime[0],DEBUG_UART);//send data acquisition start time
 		sendSerialUInt32(dataSendTime[1],DEBUG_UART);//send data acquisition end time

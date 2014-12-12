@@ -84,16 +84,24 @@ uint16_t MAX31855read( uint8_t sel, uint16_t *coldJunction )
 
 	//MAX318555 has temp start at zero then go up, but below zero it starts at 0x3FFF and count back down
 	//shift positive temperatures to read  0x3FFF at 0C.
-	if (temperature < 0x3FFF) //((temperature >> 13) != 1)
-	{//temperature is greater than 0C
-		temperature = temperature + 0x4000;//
+	if (temperature < (uint16_t)0x2000)
+	{//temperature is greater than or equal to 0C
+		temperature = temperature + (uint16_t)0x2000;//
+	}
+	else
+	{//temperature is less than 0C
+		temperature = temperature - (uint16_t)0x2000;//
 	}
 
 	//MAX318555 has coldJunction temp start at zero then go up, but below zero it starts at 0xFFF and count back down
 	//shift positive temperatures to read  0xFFF at 0C.
-	if (*coldJunction < 0xFFF) //((coldJunction >>11) != 1)
+	if (*coldJunction < (uint16_t)0x800)
 	{//coldJunction is greater than 0C
-		*coldJunction = *coldJunction + 0x1000;//
+		*coldJunction = *coldJunction + (uint16_t)0x800;//
+	}
+	else
+	{
+		*coldJunction = *coldJunction - (uint16_t)0x800;//
 	}
 
 
