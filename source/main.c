@@ -67,6 +67,7 @@ static void prvSetupHardware(void)
 /* Emergency Stop thread */
 void vEStopTask(void * pvParameters ) {
 	uint8_t i;
+	uint16_t finalState;
 
 	while (1)
 	{
@@ -83,7 +84,12 @@ void vEStopTask(void * pvParameters ) {
 
 			//Set all outputs to final state
 			//Board_DO_Set((uint16_t) 0);//set all outputs to 0
-			Board_DO_Set(DO_Command[commandFinal]);//set all DO channel states at once
+
+			//make sure servos stay on
+			finalState=DO_Command[commandFinal]  | (1<<DO_SERVO1) | (1<<DO_SERVO2);
+
+			Board_DO_Set(finalState);//set all DO channel states at once
+			vTaskDelay(5);
 			PWM_Enable(0);//turn off spark
 
 			//set servos to closed (try twice to make sure it works
@@ -92,10 +98,11 @@ void vEStopTask(void * pvParameters ) {
 			{
 				vTaskDelay(5);
 				SetServoPosition(0, Servo_Command[commandFinal][0]);//N2O Valve
-				vTaskDelay(5);
+				vTaskDelay(50);
 				SetServoPosition(1, Servo_Command[commandFinal][1]);//Fuel Valve
-				vTaskDelay(20);
+				vTaskDelay(100);
 			}
+
 			servoCommandFlag = 0;
 
 
@@ -113,6 +120,7 @@ void vEStopTask(void * pvParameters ) {
 void vFireControlTask(void * pvParameters ) {
 	portTickType tickTime;
 	portTickType interval;
+	uint8_t exitCondition; //0 if sequence loop should be exited
 
 	while (1)
 	{
@@ -141,9 +149,9 @@ void vFireControlTask(void * pvParameters ) {
 		commandNum = 0;//reset sequence to start at command 0
 		servoCommandFlag = 0;  //allow servo to be queried for position
 
+		exitCondition=1;
+		while ((commandNum <= commandFinal) && (exitCondition==1) && emergencyStop == 0) {
 
-
-		while ((commandNum <= commandFinal) && (commandTime[commandNum] >= 0) && emergencyStop == 0) {
 			tickTime = xTaskGetTickCount();
 			if (fireStartTime+commandTime[commandNum] > tickTime)//wait for commandTime if we haven't passed it yet
 			{
@@ -188,8 +196,18 @@ void vFireControlTask(void * pvParameters ) {
 
 				commandNum++;
 			}
+
+			//exit loop if the next command has an invalid time
+			if ((commandNum>0) && (commandNum<=commandFinal))
+			{
+				if (commandTime[commandNum] < commandTime[commandNum-1])
+				{
+					exitCondition = 0;
+				}
+			}
 		}
 
+		Board_LED_Set(1, true);
 
 		runningControl = 0;
 		redlinesEnabled = 0;

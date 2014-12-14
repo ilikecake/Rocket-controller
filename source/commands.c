@@ -159,8 +159,8 @@ static int _F1_Handler (void)
 	uint8_t RegData;
 	uint8_t servoID;
 
-	portTickType tickTime;
-	portTickType interval;
+	//portTickType tickTime;
+	//portTickType interval;
 
 
 	Reg = argAsInt(1);
@@ -169,68 +169,6 @@ static int _F1_Handler (void)
 
 	if(NumberOfArguments() == 0)
 	{
-/*
-		redlinesEnabled = 1;//set flag to show that redlines are active and should be checked when reading data
-		emergencyStop = 0;//the emergency stop has not been triggered
-		redlineNumber=0xFE;//reset null redline number value
-
-		runningControl = 1;//show that control sequence is running
-
-		fireStartTime = xTaskGetTickCount(); //store the time at which the control sequence was started
-		//runningData = 1;//show that data is being read from sensors
-		//vTaskResume(vDataAquisitionTaskHandle);//make sure data is being acquired
-
-		activeSaveData=1; //begin saving data
-		commandNum = 0;//reset sequence to start at command 0
-		servoCommandFlag = 0;  //allow servo to be queried for position
-
-
-		while ((commandNum < MAX_COMMANDS) && (commandTime[commandNum] >= 0) && emergencyStop == 0) {
-			tickTime = xTaskGetTickCount();
-			if (fireStartTime+commandTime[commandNum] > tickTime)//wait for commandTime if we haven't passed it yet
-			{
-				if (fireStartTime+commandTime[commandNum] - SERVO_DEADBAND > tickTime) //if we have time, wake up in time to stop the ReadServo
-				{
-					//wait until SERVO_DEADBAND milliseconds before next command time
-					interval=(fireStartTime+commandTime[commandNum]) - SERVO_DEADBAND - tickTime;
-					vTaskDelayUntil(&tickTime,interval);
-
-					servoCommandFlag = 1;//prevent ReadServo from starting a read that will conflict with the servo command timing
-					tickTime = xTaskGetTickCount();
-				}
-				//wait for next command time
-				interval=(fireStartTime+commandTime[commandNum]) - tickTime;
-				vTaskDelayUntil(&tickTime,interval);
-			}
-
-			if (emergencyStop==0)
-			{
-				//set digital outputs
-				Board_DO_Set(DO_Command[commandNum]);//set all DO channel states at once
-				//printf("Set DO(%u): %u\r\n",commandNum, DO_Command[commandNum]);
-
-				PWM_Enable(Spark_Command[commandNum]);//set spark state
-				//printf("Set spark(%u): %u\r\n",commandNum, Spark_Command[commandNum]);
-
-
-				//send position commands to servos.  this will take a while
-				SetServoPosition(0, Servo_Command[commandNum][0]);//N2O Valve
-				SetServoPosition(1, Servo_Command[commandNum][1]);//Fuel Valve
-				servoCommandFlag = 0;
-
-				commandNum++;
-			}
-		}
-
-		runningControl = 0;
-		redlinesEnabled = 0;
-
-		//wait for a few seconds.  Continue recording data for 5 seconds during shutdown.
-		vTaskDelay(configTICK_RATE_HZ * 5);
-		activeSaveData = 0;//stop recording data
-
-
-*/
 
 
 	}
@@ -251,11 +189,11 @@ static int _F1_Handler (void)
 		PCA9535_SetOutput((uint8_t)Reg, RegData);
 
 		//check to see if I just enabled or disabled a servo
-		if (Reg==DO_SPARK1)
+		if (Reg==DO_SERVO1)
 		{
 			servoID=1;
 		}
-		else if (Reg==DO_SPARK2)
+		else if (Reg==DO_SERVO2)
 		{
 			servoID=2;
 		}
@@ -268,9 +206,9 @@ static int _F1_Handler (void)
 			if (RegData==1)
 			{
 				if(runningData==0) printf("Detecting servo %u ... ",servoID);
-				for (i=0;i<20;i++)
+				for (i=0;i<30;i++)
 				{
-					vTaskDelay(200);//check for servo every .2 seconds
+					vTaskDelay(500);//check for servo every .5 seconds
 					servoExists[servoID-1] = MX106T_Ping(servoID);//servo IDs start at 1 and count up, but servoExists starts at 0
 				}
 
@@ -590,10 +528,12 @@ static int _F5_Handler (void)
 				Servo_Command[cNum][channel] = argAsInt(5+channel);
 			}
 
-			if (cNum > commandFinal)
-			{
+
+			//must now upload sequence files in order
+			//if (cNum > commandFinal)
+			//{
 				commandFinal = cNum;
-			}
+			//}
 
 		}
 	}
