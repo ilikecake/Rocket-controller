@@ -86,9 +86,9 @@ void vEStopTask(void * pvParameters ) {
 			//Board_DO_Set((uint16_t) 0);//set all outputs to 0
 
 			//make sure servos stay on
-			finalState=DO_Command[commandFinal]  | (1<<DO_SERVO1) | (1<<DO_SERVO2);
-
+			finalState=DO_Command[commandFinal];//  | (1<<DO_SERVO1) | (1<<DO_SERVO2);
 			Board_DO_Set(finalState);//set all DO channel states at once
+
 			vTaskDelay(5);
 			PWM_Enable(0);//turn off spark
 

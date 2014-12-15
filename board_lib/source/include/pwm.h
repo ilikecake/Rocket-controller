@@ -47,4 +47,6 @@ void PWM_SetDutyCycle(uint8_t PWMNumber, uint8_t DutyCycle);
 
 void PWM_Enable(uint8_t state);
 
+uint8_t PWM_GetState();
+
 #endif /* PWM_H_ */

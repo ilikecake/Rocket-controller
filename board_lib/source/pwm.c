@@ -102,6 +102,17 @@ void PWM_Enable(uint8_t state)
 	}
 	return;
 }
+uint8_t PWM_GetState()
+{//return 1 if PWM is running
+	if (LPC_PWM1->TCR ==9)
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
 
 
 void PWM_SetDutyCycle(uint8_t PWMNumber, uint8_t DutyCycle)

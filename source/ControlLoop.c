@@ -158,7 +158,7 @@ void ReadData(void)
 		dataSendBuffer[i]=dataSendBuffer[i] | (activeSaveData<<2);//bit 2: activeSaveData, saving data to flash memory
 		dataSendBuffer[i]=dataSendBuffer[i] | (redlinesEnabled<<3);//bit 3: redlinesEnabled, redlines active
 		dataSendBuffer[i]=dataSendBuffer[i] | (emergencyStop<<4);//bit 4: emergencyStop, reset Emergency stop flag
-		dataSendBuffer[i]=dataSendBuffer[i] | (Spark_Command[commandNum]<<5);//bit 5: state of spark PWM driver
+		dataSendBuffer[i]=dataSendBuffer[i] | (PWM_GetState()<<5);//bit 5: state of spark PWM driver //Spark_Command[commandNum]
 		i++;
 
 		dataSendBuffer[i]=(uint16_t) redlineNumber;//45;//spare

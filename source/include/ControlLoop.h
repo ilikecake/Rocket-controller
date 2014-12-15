@@ -67,6 +67,8 @@ uint8_t redlinesEnabled;
 uint8_t emergencyStop;
 uint8_t redlineNumber; //index of the redline that ended a test
 
+//uint8_t PWM_state;
+
 //buffers to store all data
 xSemaphoreHandle dataSemaphore;	//control data handling
 
