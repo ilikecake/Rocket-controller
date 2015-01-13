@@ -281,13 +281,11 @@ void vServoReadTask(void * pvParameters ) {
 
 /* This task looks for waiting commands from UART and runs them */
 void vRunCommandTask(void * pvParameters ) {
-
+	int tickDelay = configTICK_RATE_HZ/50;
 	while (1)
 	{
 		RunCommand();
-
-
-		vTaskDelay(configTICK_RATE_HZ/5);
+		vTaskDelay(tickDelay);
 	}
 }
 

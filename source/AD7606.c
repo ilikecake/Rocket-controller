@@ -297,18 +297,18 @@ void AD7606GetDataSet(uint8_t chipNumber, uint16_t* DataSet)
 	SSP_ConfigFormat ssp_format;
 	uint8_t ADInputData[16];
 
+	//Set up the SSP format for the AD7606, SPI mode 10
+	ssp_format.frameFormat = SSP_FRAMEFORMAT_SPI;
+	ssp_format.bits = SSP_BITS_8;
+	ssp_format.clockMode = SSP_CLOCK_CPHA1_CPOL1;// SSP_CLOCK_CPHA0_CPOL1;
+	Chip_SSP_SetFormat(LPC_SSP1, &ssp_format);
+
 	//Start conversion
 	AD7606_Start(chipNumber,true);
 
 	//Wait for data to become available
 	AD7606WaitReady(chipNumber);
 	AD7606_Start(chipNumber,false);
-
-	//Set up the SSP format for the AD7606, SPI mode 10
-	ssp_format.frameFormat = SSP_FRAMEFORMAT_SPI;
-	ssp_format.bits = SSP_BITS_8;
-	ssp_format.clockMode = SSP_CLOCK_CPHA0_CPOL1;
-	Chip_SSP_SetFormat(LPC_SSP1, &ssp_format);
 
 	//Chip_SSP_Enable(LPC_SSP1);
 	xf_setup.length = 16;
@@ -324,6 +324,7 @@ void AD7606GetDataSet(uint8_t chipNumber, uint16_t* DataSet)
 
 	//Deselect A/D 1
 	AD7606_Select(chipNumber,0);
+
 
 	for(i=0; i<8; i++)
 	{
@@ -341,16 +342,17 @@ void AD7606GetDataSet(uint8_t chipNumber, uint16_t* DataSet)
 		//	DataSet[i]=DataSet[i]-65536;
 		//}
 
-		/*
+/*
 		//bit 16 is sign.  shift data to be centered on 2^15
 		if ((DataSet[i]>>16)==1)
 		{
-			DataSet[i]=65536-DataSet[i];//negative numbers count back from 32768
+			DataSet[i]=DataSet[i]-0x8000;//negative numbers count back from 32768
 		}
 		else
 		{
-			DataSet[i]=DataSet[i]+32768;//positive numbers count up from 32768
-		}*/
+			DataSet[i]=DataSet[i]+0x8000;//positive numbers count up from 32768
+		}
+*/
 
 		//DataSet[i] = chipNumber*1000+i*10;
 	}

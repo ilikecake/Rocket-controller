@@ -80,6 +80,9 @@ void ReadData(void)
 	{
 		dataAnalog[channel+0*AI_CHANNELS_PER_CHIP] = DataSet[channel];
 	}
+
+	//printf("DataAnalog: 0x%04X\r\n", dataAnalog[1]);
+
 	//get analog data from chip 3
 	chipsel=3;
 	AD7606GetDataSet(chipsel, DataSet);
@@ -87,7 +90,6 @@ void ReadData(void)
 	{
 		dataAnalog[channel+1*AI_CHANNELS_PER_CHIP] = DataSet[channel];
 	}
-
 
 	//get temperature and cold junction data for "channel"
 	for(channel=0;channel<TC_CHIPS;channel++)
@@ -109,13 +111,13 @@ void ReadData(void)
 		i=0;
 
 		//put analog channel data into send buffer
-		chipsel=0;
+		//chipsel=0;
 		for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
 		{
 			dataSendBuffer[i] = dataAnalog[channel+0*AI_CHANNELS_PER_CHIP];
 			i++;
 		}
-		chipsel=2;
+		//chipsel=2;
 		for(channel=0;channel<AI_CHANNELS_PER_CHIP;channel++)
 		{
 			dataSendBuffer[i] = dataAnalog[channel+1*AI_CHANNELS_PER_CHIP];
@@ -140,11 +142,6 @@ void ReadData(void)
 
 		//servo buffer will not be time consistent
 		// if we want all servo data to be from the same time we need to update buffer from servo read thread
-		//for (channel=0;channel<TOTAL_SERVO_CHANNELS*2;channel++)
-		//{
-		//	dataSendBuffer[AI_CHIPS*AI_CHANNELS_PER_CHIP+2*TC_CHIPS*TC_CHANNELS_PER_CHIP+i] = dataServo[i];
-		//	i++;
-		//}
 		i=i+4;
 
 		//read states of digital output IO expander
@@ -159,15 +156,15 @@ void ReadData(void)
 		dataSendBuffer[i]=dataSendBuffer[i] | (redlinesEnabled<<3);//bit 3: redlinesEnabled, redlines active
 		dataSendBuffer[i]=dataSendBuffer[i] | (emergencyStop<<4);//bit 4: emergencyStop, reset Emergency stop flag
 		dataSendBuffer[i]=dataSendBuffer[i] | (PWM_GetState()<<5);//bit 5: state of spark PWM driver //Spark_Command[commandNum]
+		dataSendBuffer[i]=dataSendBuffer[i] | (servoExists[0]<<6);//bit 6: existence of servo 1
+		dataSendBuffer[i]=dataSendBuffer[i] | (servoExists[1]<<7);//bit 7: existence of servo 2
 		i++;
 
 		dataSendBuffer[i]=(uint16_t) redlineNumber;//45;//spare
 		i++;
 		dataSendBuffer[i]=i;//46;//spare
 
-
 		CheckRedlines();//check redline conditions and set heater state
-
 
 		//give data buffer semaphore
 		xSemaphoreGive(dataSemaphore);
@@ -228,25 +225,34 @@ void SetServoPosition(uint8_t servoNum, uint16_t position)
 	//servoNum=0 is N2O valve (valveID = 1)
 	//servoNum=1 is Fuel valve (valveID = 2)
 	uint8_t servoID;
+	uint8_t initial_servoCommandFlag=servoCommandFlag;
+	uint8_t errMsg;
 	servoID=servoNum+1;
 
 	if (servoExists[servoNum]==1)
 	{
-		//if( xSemaphoreTake( servoSemaphore, ( portTickType ) 200 ) == pdTRUE )	//take servo semaphore
-		//{
+		servoCommandFlag = 1;
+		if( xSemaphoreTake( servoSemaphore, ( portTickType ) 200 ) == pdTRUE )	//take servo semaphore
+		{
 			//only send a new servo command if it is different from previous command
 			if (position != lastServoCommand[servoNum])
 			{
-				MX106T_Set16bit(servoID,SERVO_GOAL_POSITION_16,position);
+				errMsg=MX106T_Set16bit(servoID,SERVO_GOAL_POSITION_16,position);
+			}
+
+			if (errMsg>0)
+			{//an error occurred during send
+				servoExists[servoID-1] = 0;//mark servo as non-responsive
 			}
 
 			//xSemaphoreGive(servoSemaphore);//give back servo semaphore
 			lastServoCommand[servoNum]=position;
-		//}
-		//else
-		//{	//if a servo command failed, trigger an emergency stop
+		}
+		else
+		{	//if a servo command failed, trigger an emergency stop
 		//	vTaskResume(vEStopTaskHandle);
-		//}
+		}
+		servoCommandFlag=initial_servoCommandFlag; //return servoCommandFlag to the setting before I changed it
 	}
 
 	return;
@@ -270,13 +276,17 @@ void ReadServo(void)
 			if (servoExists[servoNum]==1)
 			{
 				dataServo[servoNum] = MX106T_Read16bit(servoID, SERVO_PRESENT_POSITION_16, &msg);
+				if (msg==0)
+				{
+					//dataServo[servoNum] = 0XFFFF;//error condition
+				}
 			}
 			else
 			{
-				dataServo[servoNum] = 0;
+				//dataServo[servoNum] = 0XFFFF;//error condition
 			}
-
 		}
+
 		for (servoNum=0;servoNum<TOTAL_SERVO_CHANNELS;servoNum++)
 		{
 			servoID=servoNum+1;

@@ -852,9 +852,9 @@ static int _F12_Handler (void)
 //datastart: Enable/Disable dataread and datasend tasks
 static int _F13_Handler (void)
 {
-	portTickType tickTime;
-	portTickType interval;
-	uint8_t g = 0;
+	//portTickType tickTime;
+	//portTickType interval;
+	//uint8_t g = 0;
 
 
 	if (argAsInt(1)>100)
@@ -863,17 +863,17 @@ static int _F13_Handler (void)
 		//vTaskResume(vServoReadTask);//make sure data is being acquired
 		//vTaskResume(vDataSendTask);//make sure data is being acquired
 
-		printf("Data Speed Test Start\r\n");
-		tickTime = xTaskGetTickCount();
-		for(g=0;g<50;g++)
-		{
+		//printf("Data Speed Test Start\r\n");
+		//tickTime = xTaskGetTickCount();
+		//for(g=0;g<50;g++)
+		//{
 			ReadData();
 			SendData();//takes 6.88ms
 
-			vTaskDelay(10);
-		}
-		interval= xTaskGetTickCount();
-		printf("\r\nElapsed Time =%dms\r\n",interval-tickTime-500);
+		//	vTaskDelay(10);
+		//}
+		//interval= xTaskGetTickCount();
+		//printf("\r\nElapsed Time =%dms\r\n",interval-tickTime-500);
 
 	/*
 	3.22	ms/ AI read
